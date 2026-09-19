@@ -11,7 +11,7 @@ module TypeSafe
     attr_reader :headers
     # Extra top-level body fields, shallow-merged last-write-wins.
     attr_reader :extra_body
-    # Retry policy override for this call only.
+    # Retry policy override for this call only: a RetryPolicy, or a Hash applied on the client policy.
     attr_reader :retry_policy
 
     def self.from(options)
@@ -27,7 +27,7 @@ module TypeSafe
       @timeout = validate_timeout(timeout)
       @headers = (headers || {}).each_with_object({}) { |(name, value), result| result[name.to_s] = value.to_s }
       @extra_body = validate_extra_body(extra_body)
-      @retry_policy = retry_policy
+      @retry_policy = validate_retry_policy(retry_policy)
       freeze
     end
 
@@ -38,6 +38,12 @@ module TypeSafe
       return timeout if timeout.is_a?(Numeric) && timeout.finite? && timeout.positive?
 
       raise ArgumentError, "timeout must be a positive number of seconds, got #{timeout.inspect}"
+    end
+
+    def validate_retry_policy(retry_policy)
+      return retry_policy if retry_policy.nil? || retry_policy.is_a?(RetryPolicy) || retry_policy.is_a?(Hash)
+
+      raise ArgumentError, "retry_policy must be a RetryPolicy or a Hash, got #{retry_policy.class}"
     end
 
     def validate_extra_body(extra_body)

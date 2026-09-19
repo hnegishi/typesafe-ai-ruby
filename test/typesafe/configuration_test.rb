@@ -17,6 +17,7 @@ module TypeSafe
         assert_in_delta 10.0, config.timeout
         assert_equal({}, config.headers)
         assert_equal :warn, config.log_level
+        assert_equal RetryPolicy::DEFAULT, config.retry_policy
         assert_kind_of Logger, config.logger
         assert_equal Logger::WARN, config.logger.level
         assert_true config.frozen?
@@ -62,6 +63,11 @@ module TypeSafe
         assert_raise(ConfigurationError) { resolve(api_key: "k", timeout: 0) }
         assert_raise(ConfigurationError) { resolve(api_key: "k", timeout: "10") }
         assert_raise(ConfigurationError) { resolve(api_key: "k", log_level: :loud) }
+      end
+
+      should "coerce a retry policy hash" do
+        assert_equal RetryPolicy.new(max_retries: 0), resolve(api_key: "k", retry_policy: { max_retries: 0 }).retry_policy
+        assert_raise(ArgumentError) { resolve(api_key: "k", retry_policy: 3) }
       end
 
       should "stringify headers and keep a user supplied logger" do

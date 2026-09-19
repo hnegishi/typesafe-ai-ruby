@@ -24,7 +24,7 @@ module TypeSafe
     attr_accessor :logger
     # Log level; falls back to TYPESAFE_LOG_LEVEL, then :warn.
     attr_accessor :log_level
-    # Retry policy overrides (a RetryPolicy or Hash).
+    # Retry policy: a RetryPolicy, or a Hash of overrides on the SDK defaults.
     attr_accessor :retry_policy
     # Custom transport responding to #call(request); defaults to Net::HTTP.
     attr_accessor :transport
@@ -58,8 +58,8 @@ module TypeSafe
       resolved.model = resolve_model(env)
       resolved.timeout = resolve_timeout
       resolved.headers = resolve_headers
-      resolved.log_level = resolve_log_level(env)
-      resolved.logger = logger || build_logger(resolved.log_level)
+      resolved.retry_policy = RetryPolicy.from(retry_policy)
+      resolve_logging(resolved, env)
       resolved.freeze
     end
 
@@ -105,6 +105,11 @@ module TypeSafe
 
     def resolve_headers
       (headers || {}).each_with_object({}) { |(name, value), result| result[name.to_s] = value.to_s }
+    end
+
+    def resolve_logging(resolved, env)
+      resolved.log_level = resolve_log_level(env)
+      resolved.logger = logger || build_logger(resolved.log_level)
     end
 
     def resolve_log_level(env)
