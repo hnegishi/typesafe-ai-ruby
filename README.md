@@ -27,7 +27,7 @@ gem install typesafe-ai-ruby
 
 ## Usage
 
-Get an API key from the [TypeSafe console](https://console.typesafe.ai/settings/keys) and set it as `TYPESAFE_API_KEY`, or pass it to the client directly.
+Get an API key from the [TypeSafe console](https://console.typesafe.ai/settings/keys) and set it as `TYPESAFE_API_KEY`, or pass it to the client.
 
 ```ruby
 require "typesafe-ai-ruby"
@@ -35,17 +35,11 @@ require "typesafe-ai-ruby"
 client = TypeSafe::Client.new(api_key: ENV["TYPESAFE_API_KEY"])
 
 response = client.system_one(
-  state: "Hi, I've been trying to connect my Stripe account for 3 days and it keeps failing. Please help ASAP.",
+  state: "I've been trying to connect my Stripe account for 3 days and it keeps failing. Please help ASAP.",
   questions: {
-    department: TypeSafe::Choice.new(
-      instructions: "Which team should handle this?",
-      criteria: { billing: "Payment issues", technical: "Bugs or integrations", sales: "Pricing questions" }
-    ),
-    frustration: TypeSafe::Score.new(
-      instructions: "How frustrated is the customer?",
-      criteria: ["Calm", "Frustrated but civil", "Very angry"]
-    ),
-    is_urgent: TypeSafe::Noul.new(instructions: "Does the message convey urgency?")
+    department: TypeSafe.choice("Which team should handle this?", billing: nil, technical: nil, sales: nil),
+    frustration: TypeSafe.score("How frustrated is the customer?", ["Calm", "Frustrated", "Very angry"]),
+    is_urgent: TypeSafe.noul("Does the message convey urgency?")
   }
 )
 
@@ -53,62 +47,13 @@ response.choices[:department].choice      # => "billing"
 response.choices[:department].confidence  # => 0.45
 response.scores[:frustration].score       # => 1.0
 response.nouls[:is_urgent].noul           # => 0.99
-response.model                            # => "jev-1.13.0"
 ```
 
-### Questions
+There are three question types. `TypeSafe.noul` asks a yes/no question and returns the probability of yes. `TypeSafe.choice` picks one option and returns the choice with a probability per option and a confidence. `TypeSafe.score` rates the state against ordered levels and returns the expected score, a legend, probabilities and a confidence. Use the confidence to decide whether to act on an answer or hand it to a human.
 
-There are three question types. `instructions` and every description can be a string, a Hash, or an Array when a sentence is not enough.
+`state` can be a String, a Hash or an Array. Answers come back under the names you chose, with String or Symbol keys, and `response.to_h` gives you the raw JSON.
 
-- `TypeSafe::Noul` asks a yes/no question and returns the probability of yes. Criteria are optional: `criteria: { true: "Spam", false: "A real conversation" }`.
-- `TypeSafe::Choice` picks one option from a set. Criteria are required; use `nil` when the name speaks for itself.
-- `TypeSafe::Score` rates the state against ordered levels. Criteria are an Array of at least two levels, and each level's index is its score.
-
-The shorthand helpers take the instructions first:
-
-```ruby
-TypeSafe.noul("Is this spam?")
-TypeSafe.choice("What is the tone?", calm: nil, frustrated: nil, angry: nil)
-TypeSafe.score("How urgent is this?", ["Can wait", "This week", "Today"])
-```
-
-You can also pass a plain Hash with a `type` key. Extra keys are sent to the API untouched, so new API fields work before this library knows about them.
-
-`state` is whatever the questions are about: a String, a Hash, or an Array. Symbols are converted to strings, and objects that respond to `as_json` are converted through it.
-
-### Answers
-
-`system_one` returns a `TypeSafe::Responses::SystemOneResponse`. Answers are keyed by question name and accept String or Symbol keys.
-
-```ruby
-response.answers          # every answer
-response.nouls            # only Noul answers
-response.choices          # only Choice answers, with #choice, #probabilities and #confidence
-response.scores           # only Score answers, with #score, #legend, #probabilities and #confidence
-response.usage.input_tokens
-response.request_id
-response.to_h             # the raw JSON body
-```
-
-Use `confidence` to decide whether to act on an answer automatically or hand it to a human. See `examples/` for confidence-gated routing and asking many questions in one request.
-
-### Errors
-
-Errors inherit from `TypeSafe::Error`. HTTP failures raise a subclass of `TypeSafe::APIError` with `status`, `body`, `headers`, `endpoint` and `request_id`.
-
-```ruby
-begin
-  client.system_one(state: ticket, questions: questions)
-rescue TypeSafe::RateLimitError => e
-  sleep(e.retry_after || 1)
-rescue TypeSafe::APIError => e
-  logger.error("TypeSafe #{e.status}: #{e.message} (request #{e.request_id})")
-rescue TypeSafe::APIConnectionError => e
-  # no HTTP response; includes TypeSafe::APITimeoutError
-end
-```
-
-Malformed questions raise `TypeSafe::ValidationError` before anything is sent.
+HTTP failures raise a subclass of `TypeSafe::APIError`, such as `TypeSafe::RateLimitError`, with `status`, `body` and `request_id`. Network failures raise `TypeSafe::APIConnectionError`. Malformed questions raise `TypeSafe::ValidationError` before anything is sent.
 
 ## Configuration
 
