@@ -28,6 +28,7 @@ module Test
 
       teardown do
         TypeSafe.reset!
+        TypeSafe::Instrumentation.reset!
       end
     end
   end

@@ -37,10 +37,49 @@ module TypeSafe
       private
 
       def execute(request, options)
-        retrier = Retrier.new(retry_policy_for(options), sleeper: @sleeper, clock: @clock,
-                                                         on_retry: method(:log_retry))
-        retrier.run do |attempt|
+        call = CallState.new(request)
+        Instrumentation.notify(:request_begin, call.begin_event)
+        response = retrier_for(options, call).run do |attempt|
           send_once(attempt.zero? ? request : request.with_headers(Constants::Headers::RETRY_COUNT => attempt.to_s))
+        end
+        Instrumentation.notify(:request_end, call.end_event(response: response))
+        response
+      rescue APIError, APIConnectionError => e
+        Instrumentation.notify(:request_end, call.end_event(error: e))
+        raise
+      end
+
+      def retrier_for(options, call)
+        on_retry = lambda do |error, attempt, delay|
+          call.retried!
+          log_retry(error, attempt, delay)
+        end
+        Retrier.new(retry_policy_for(options), sleeper: @sleeper, clock: @clock, on_retry: on_retry)
+      end
+
+      # Bookkeeping for one client call across its attempts, feeding the instrumentation events.
+      class CallState
+        attr_reader :begin_event
+
+        def initialize(request)
+          @request = request
+          @started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          @num_retries = 0
+          @begin_event = Instrumentation::RequestBeginEvent.new(method: request.method, path: request.uri.path)
+        end
+
+        def retried!
+          @num_retries += 1
+        end
+
+        def end_event(response: nil, error: nil)
+          status = response&.status || (error.status if error.is_a?(APIError))
+          request_id = response&.request_id || (error.request_id if error.is_a?(APIError))
+          Instrumentation::RequestEndEvent.new(
+            method: @request.method, path: @request.uri.path, http_status: status,
+            duration: Process.clock_gettime(Process::CLOCK_MONOTONIC) - @started,
+            num_retries: @num_retries, request_id: request_id, error: error, user_data: @begin_event.user_data
+          )
         end
       end
 
