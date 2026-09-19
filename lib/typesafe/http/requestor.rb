@@ -2,8 +2,8 @@
 
 module TypeSafe
   module HTTP
-    # Builds requests from a Configuration, sends them through a transport, logs them,
-    # and turns non-2xx responses into APIErrors.
+    # Builds requests from a Configuration, sends them through a transport with retries,
+    # logs them, and turns non-2xx responses into APIErrors.
     class Requestor
       PROTECTED_HEADERS = [
         Constants::Headers::AUTHORIZATION, Constants::Headers::ACCEPT, Constants::Headers::USER_AGENT,
@@ -12,19 +12,22 @@ module TypeSafe
 
       attr_reader :config, :transport
 
-      def initialize(config, transport: nil)
+      # sleeper and clock exist so tests can drive the retry loop without waiting.
+      def initialize(config, transport: nil, sleeper: nil, clock: nil)
         @config = config
         @transport = transport || config.transport || NetHTTPTransport.new
+        @sleeper = sleeper
+        @clock = clock
       end
 
-      # A successful response.
+      # Send a POST and return the successful response.
       def post(path, body:, options: RequestOptions.new)
-        execute(build_request(:post, path, body: body, options: options))
+        execute(build_request(:post, path, body: body, options: options), options)
       end
 
-      # A successful response.
+      # Send a GET and return the successful response.
       def get(path, options: RequestOptions.new)
-        execute(build_request(:get, path, options: options))
+        execute(build_request(:get, path, options: options), options)
       end
 
       def close
@@ -33,13 +36,25 @@ module TypeSafe
 
       private
 
-      def execute(request)
+      def execute(request, options)
+        retrier = Retrier.new(retry_policy_for(options), sleeper: @sleeper, clock: @clock,
+                                                         on_retry: method(:log_retry))
+        retrier.run do |attempt|
+          send_once(attempt.zero? ? request : request.with_headers(Constants::Headers::RETRY_COUNT => attempt.to_s))
+        end
+      end
+
+      def send_once(request)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         response = transport.call(request)
         log_response(request, response, started)
         raise APIError.from_response(response) unless response.success?
 
         response
+      end
+
+      def retry_policy_for(options)
+        RetryPolicy.from(options.retry_policy, base: config.retry_policy)
       end
 
       def build_request(method, path, body: nil, options: RequestOptions.new)
@@ -73,12 +88,24 @@ module TypeSafe
       end
 
       def log_response(request, response, started)
-        return unless config.logger && config.logger_severity <= Logger::INFO
+        return unless log?(Logger::INFO)
 
         elapsed = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
         config.logger.info("typesafe") do
           "#{request.endpoint} -> #{response.status} (#{elapsed}ms) request_id=#{response.request_id || "-"}"
         end
+      end
+
+      def log_retry(error, attempt, delay)
+        return unless log?(Logger::INFO)
+
+        config.logger.info("typesafe") do
+          "retry #{attempt + 1} in #{delay.round(3)}s after #{error.class.name.split("::").last}: #{error.message}"
+        end
+      end
+
+      def log?(severity)
+        config.logger && config.logger_severity <= severity
       end
     end
   end

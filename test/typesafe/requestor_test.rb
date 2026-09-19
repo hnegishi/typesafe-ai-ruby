@@ -6,9 +6,13 @@ module TypeSafe
   class RequestorTest < Test::Unit::TestCase
     OK = { status: 200, headers: {}, body: "{}" }.freeze
 
+    setup do
+      @sleeps = []
+    end
+
     def build_requestor(transport, **options)
       config = Configuration.new(api_key: "k", logger: Logger.new(File::NULL), **options).resolve(env: {})
-      HTTP::Requestor.new(config, transport: transport)
+      HTTP::Requestor.new(config, transport: transport, sleeper: ->(s) { @sleeps << s })
     end
 
     context "#post" do
@@ -52,15 +56,61 @@ module TypeSafe
     end
 
     should "raise a typed error for non-2xx responses" do
-      transport = FakeTransport.new({ status: 429, headers: { "retry-after-ms" => "250" }, body: '{"error":"slow down"}' })
-      e = assert_raise(RateLimitError) { build_requestor(transport).get("/v1/models") }
-      assert_in_delta 0.25, e.retry_after
+      transport = FakeTransport.new({ status: 422, headers: {}, body: '{"detail":"bad"}' })
+      e = assert_raise(UnprocessableEntityError) { build_requestor(transport).get("/v1/models") }
       assert_equal "GET https://api.typesafe.ai/v1/models", e.endpoint
+      assert_equal 1, transport.requests.size
     end
 
-    should "let transport errors propagate" do
+    context "retries" do
+      should "retry retryable responses and mark the retry count header" do
+        transport = FakeTransport.new(
+          { status: 429, headers: { "retry-after-ms" => "250" }, body: '{"error":"slow down"}' },
+          { status: 503, headers: {}, body: "" },
+          OK
+        )
+        build_requestor(transport).get("/v1/models")
+        assert_equal 3, transport.requests.size
+        assert_false transport.requests[0].headers.key?("X-TypeSafe-Retry-Count")
+        assert_equal "1", transport.requests[1].headers["X-TypeSafe-Retry-Count"]
+        assert_equal "2", transport.requests[2].headers["X-TypeSafe-Retry-Count"]
+        assert_in_delta 0.25, @sleeps[0]
+        assert_includes 0.75..1.0, @sleeps[1]
+      end
+
+      should "retry connection errors and raise the last error after max_retries" do
+        transport = FakeTransport.new(APIConnectionError.new("reset"), APITimeoutError.new(timeout: 1),
+                                      { status: 429, headers: {}, body: "" })
+        e = assert_raise(RateLimitError) { build_requestor(transport).get("/v1/models") }
+        assert_nil e.retry_after
+        assert_equal 3, transport.requests.size
+        assert_equal 2, @sleeps.size
+      end
+
+      should "use the client policy and allow per-call overrides" do
+        transport = FakeTransport.new({ status: 503, headers: {}, body: "" }, OK)
+        assert_raise(InternalServerError) do
+          build_requestor(transport, retry_policy: { max_retries: 0 }).get("/v1/models")
+        end
+        assert_equal 1, transport.requests.size
+
+        transport = FakeTransport.new({ status: 503, headers: {}, body: "" }, OK)
+        build_requestor(transport, retry_policy: { max_retries: 0 })
+          .get("/v1/models", options: RequestOptions.new(retry_policy: { max_retries: 1 }))
+        assert_equal 2, transport.requests.size
+      end
+
+      should "log each retry at info" do
+        io = StringIO.new
+        transport = FakeTransport.new({ status: 503, headers: {}, body: "" }, OK)
+        build_requestor(transport, logger: Logger.new(io), log_level: :info).get("/v1/models")
+        assert_match(/retry 1 in [\d.]+s after InternalServerError: \[503\]/, io.string)
+      end
+    end
+
+    should "let transport errors propagate when retries are disabled" do
       transport = FakeTransport.new(APITimeoutError.new(timeout: 1))
-      assert_raise(APITimeoutError) { build_requestor(transport).get("/v1/models") }
+      assert_raise(APITimeoutError) { build_requestor(transport, retry_policy: { max_retries: 0 }).get("/v1/models") }
     end
 
     context "logging" do

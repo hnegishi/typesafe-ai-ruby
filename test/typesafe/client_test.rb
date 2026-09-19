@@ -67,6 +67,17 @@ module TypeSafe
         e = assert_raise(UnprocessableEntityError) { build_client.system_one(state: "x", questions: { q: Noul.new }) }
         assert_equal 422, e.status
         assert_equal [{ "loc" => %w[body questions] }], e.body["detail"]
+        assert_requested :post, SYSTEM_ONE_URL, times: 1
+      end
+
+      should "retry overloaded responses before succeeding" do
+        stub_request(:post, SYSTEM_ONE_URL)
+          .to_return({ status: 529, body: "" }, json_response(system_one_response_fixture))
+        client = build_client(retry_policy: { backoff_initial: 0, backoff_max: 0 })
+        response = client.system_one(state: "x", questions: { q: Noul.new })
+        assert_equal "jev-1.13.0", response.model
+        assert_requested :post, SYSTEM_ONE_URL, times: 2
+        assert_requested :post, SYSTEM_ONE_URL, headers: { "X-TypeSafe-Retry-Count" => "1" }, times: 1
       end
 
       should "use a custom transport" do
