@@ -35,18 +35,18 @@ require "typesafe-ai-ruby"
 client = TypeSafe::Client.new(api_key: ENV["TYPESAFE_API_KEY"])
 
 response = client.system_one(
-  state: "I've been trying to connect my Stripe account for 3 days and it keeps failing. Please help ASAP.",
+  state: "I was charged twice. Please fix this ASAP.",
   questions: {
-    department: TypeSafe.choice("Which team should handle this?", billing: nil, technical: nil, sales: nil),
-    frustration: TypeSafe.score("How frustrated is the customer?", ["Calm", "Frustrated", "Very angry"]),
-    is_urgent: TypeSafe.noul("Does the message convey urgency?")
+    billing: TypeSafe.noul("Is this about billing?"),
+    tone: TypeSafe.choice("What is the customer's tone?", calm: nil, frustrated: nil, angry: nil),
+    urgency: TypeSafe.score("How urgent is this?", ["can wait", "this week", "today"])
   }
 )
 
-response.choices[:department].choice      # => "billing"
-response.choices[:department].confidence  # => 0.45
-response.scores[:frustration].score       # => 1.0
-response.nouls[:is_urgent].noul           # => 0.99
+response.nouls[:billing].noul          # => 0.98
+response.choices[:tone].choice         # => "frustrated"
+response.choices[:tone].confidence     # => 0.73
+response.scores[:urgency].score        # => 1.99
 ```
 
 There are three question types. `TypeSafe.noul` asks a yes/no question and returns the probability of yes. `TypeSafe.choice` picks one option and returns the choice with a probability per option and a confidence. `TypeSafe.score` rates the state against ordered levels and returns the expected score, a legend, probabilities and a confidence. Use the confidence to decide whether to act on an answer or hand it to a human.
@@ -69,7 +69,7 @@ TypeSafe.configure do |c|
   c.log_level = :info                          # TYPESAFE_LOG_LEVEL, default :warn
 end
 
-TypeSafe.client.system_one(state: "...", questions: { urgent: TypeSafe.noul("Is this urgent?") })
+TypeSafe.client.system_one(state: "I was charged twice.", questions: { billing: TypeSafe.noul("Is this about billing?") })
 ```
 
 Per-call overrides go in `request_options`:
