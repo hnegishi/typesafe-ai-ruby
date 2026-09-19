@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
-require "test_helper"
+require File.expand_path("../test_helper", __dir__)
 
-class LoadingTest < Minitest::Test
-  def test_gem_entry_point_defines_namespace
-    assert defined?(TypeSafe), "TypeSafe module should be defined"
-  end
+module TypeSafe
+  class LoadingTest < Test::Unit::TestCase
+    should "define the TypeSafe namespace" do
+      assert_true defined?(TypeSafe) ? true : false
+    end
 
-  def test_version_follows_semver
-    assert_match(/\A\d+\.\d+\.\d+(?:\.[0-9A-Za-z-]+)*\z/, TypeSafe::VERSION)
+    should "have a semantic version" do
+      assert_match(/\A\d+\.\d+\.\d+(?:\.[0-9A-Za-z-]+)*\z/, VERSION)
+    end
   end
 end

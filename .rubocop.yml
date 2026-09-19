@@ -19,6 +19,8 @@ Style/StringLiteralsInInterpolation:
 
 Layout/LineLength:
   Max: 120
+  Exclude:
+    - "test/**/*"
 
 Metrics/BlockLength:
   Exclude:
@@ -35,8 +37,16 @@ Metrics/MethodLength:
 Metrics/AbcSize:
   Max: 20
 
+Metrics/ParameterLists:
+  CountKeywordArgs: false
+
 
 # The gem entry point must match the gem name, which contains hyphens.
 Naming/FileName:
   Exclude:
     - "lib/typesafe-ai-ruby.rb"
+
+# Tests write criteria the way users would, with true/false keys.
+Lint/BooleanSymbol:
+  Exclude:
+    - "test/**/*"

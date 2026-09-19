@@ -4,9 +4,11 @@ source "https://rubygems.org"
 
 gemspec
 
-group :development, :test do
-  gem "minitest", "~> 5.25"
-  gem "rake", "~> 13.0"
+group :development do
+  gem "mocha", "~> 2.7"
+  gem "rake"
   gem "rubocop", "~> 1.70"
+  gem "shoulda-context", "~> 2.0"
+  gem "test-unit", "~> 3.6"
   gem "webmock", "~> 3.24"
 end
