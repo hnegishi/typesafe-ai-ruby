@@ -27,7 +27,7 @@ gem install typesafe-ai-ruby
 
 ## Usage
 
-Get an API key from the [TypeSafe console](https://console.typesafe.ai/settings/keys) and export it as `TYPESAFE_API_KEY`:
+Get an API key from the [TypeSafe console](https://console.typesafe.ai/keys) and export it as `TYPESAFE_API_KEY`:
 
 ```sh
 export TYPESAFE_API_KEY=...
