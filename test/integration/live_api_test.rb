@@ -92,15 +92,17 @@ module TypeSafe
       client&.close
     end
 
-    should "raise a client error for a body the server rejects" do
-      e = assert_raise(APIError) do
+    should "raise UnprocessableEntityError for a body the server rejects" do
+      e = assert_raise(UnprocessableEntityError) do
         @client.system_one(
           state: "x", questions: { q: Noul.new },
           request_options: { extra_body: { questions: { q: { type: "score", criteria: [] } } }, retry_policy: { max_retries: 0 } }
         )
       end
-      assert_includes 400..499, e.status
-      assert_not_nil e.body
+      assert_equal 422, e.status
+      assert_kind_of Array, e.body["detail"], "the server reports validation errors under detail"
+      assert_equal %w[body questions q score criteria], e.body["detail"].first["loc"]
+      assert_match(%r{\A\[422\] POST https://api\.typesafe\.ai/v1/systemone: .+ \(request_id: req_}, e.message)
     end
   end
 end
