@@ -21,6 +21,11 @@ require_relative "typesafe/http/request"
 require_relative "typesafe/http/response"
 require_relative "typesafe/http/net_http_transport"
 require_relative "typesafe/http/requestor"
+require_relative "typesafe/responses/reader"
+require_relative "typesafe/responses/usage"
+require_relative "typesafe/responses/answer"
+require_relative "typesafe/responses/system_one_response"
+require_relative "typesafe/responses/list_models_response"
 
 # Ruby client for the TypeSafe AI System One API.
 #
