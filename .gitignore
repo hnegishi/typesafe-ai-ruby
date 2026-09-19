@@ -7,3 +7,6 @@
 Gemfile.lock
 .ruby-version
 *.gem
+
+# Local planning notes
+/.z/
