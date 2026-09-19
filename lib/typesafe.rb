@@ -12,11 +12,19 @@ require_relative "typesafe/util"
 require_relative "typesafe/errors"
 require_relative "typesafe/configuration"
 require_relative "typesafe/request_options"
+require_relative "typesafe/questions/question"
+require_relative "typesafe/questions/noul"
+require_relative "typesafe/questions/choice"
+require_relative "typesafe/questions/score"
+require_relative "typesafe/questions/normalizer"
 
 # Ruby client for the TypeSafe AI System One API.
 #
 # See https://docs.typesafe.ai/ for the HTTP API this gem wraps.
 module TypeSafe
+  Noul = Questions::Noul
+  Choice = Questions::Choice
+  Score = Questions::Score
 
   class << self
     # Global settings used by .client. Mutate through .configure.
@@ -54,5 +62,37 @@ module TypeSafe
       @configuration = nil
     end
 
+    # Build a yes/no question.
+    #
+    # For example:
+    #   TypeSafe.noul("Is this spam?", true: "Unsolicited advertising", false: "A real conversation")
+    def noul(instructions = nil, criteria = nil, **named)
+      Noul.new(instructions: instructions, criteria: merge_criteria(criteria, named))
+    end
+
+    # Build a choice question.
+    #
+    # For example:
+    #   TypeSafe.choice("What is the tone?", calm: nil, angry: "Shouting or threats")
+    def choice(instructions = nil, criteria = nil, **named)
+      Choice.new(instructions: instructions, criteria: merge_criteria(criteria, named) || {})
+    end
+
+    # Build a score question.
+    #
+    # For example:
+    #   TypeSafe.score("How urgent is this?", ["can wait", "this week", "today"])
+    def score(instructions = nil, criteria = nil)
+      Score.new(instructions: instructions, criteria: criteria)
+    end
+
+    private
+
+    def merge_criteria(positional, named)
+      return positional if named.empty?
+      raise ArgumentError, "pass criteria either positionally or as keywords, not both" unless positional.nil?
+
+      named
+    end
   end
 end

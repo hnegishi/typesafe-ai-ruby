@@ -4,8 +4,10 @@ require File.expand_path("../test_helper", __dir__)
 
 module TypeSafe
   class LoadingTest < Test::Unit::TestCase
-    should "define the TypeSafe namespace" do
-      assert_true defined?(TypeSafe) ? true : false
+    should "define the TypeSafe namespace and short question aliases" do
+      assert_equal Questions::Noul, Noul
+      assert_equal Questions::Choice, Choice
+      assert_equal Questions::Score, Score
     end
 
     should "have a semantic version" do
