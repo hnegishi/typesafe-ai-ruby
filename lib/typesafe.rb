@@ -17,6 +17,10 @@ require_relative "typesafe/questions/noul"
 require_relative "typesafe/questions/choice"
 require_relative "typesafe/questions/score"
 require_relative "typesafe/questions/normalizer"
+require_relative "typesafe/http/request"
+require_relative "typesafe/http/response"
+require_relative "typesafe/http/net_http_transport"
+require_relative "typesafe/http/requestor"
 
 # Ruby client for the TypeSafe AI System One API.
 #
