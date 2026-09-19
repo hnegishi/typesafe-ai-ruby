@@ -169,6 +169,8 @@ The live API tests are skipped unless `TYPESAFE_API_KEY` is set:
 TYPESAFE_API_KEY=... bundle exec rake test:integration
 ```
 
+To release a new version, update the version number in `lib/typesafe/version.rb` and the changelog, then push a matching `v*` tag. The release workflow publishes the gem to RubyGems through trusted publishing.
+
 ## License
 
 The gem is available as open source under the terms of the [MIT License](LICENSE.txt).
