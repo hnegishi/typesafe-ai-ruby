@@ -50,3 +50,8 @@ Naming/FileName:
 Lint/BooleanSymbol:
   Exclude:
     - "test/**/*"
+
+# Examples print aligned columns with format; annotated tokens would only add noise there.
+Style/FormatStringToken:
+  Exclude:
+    - "examples/**/*"
