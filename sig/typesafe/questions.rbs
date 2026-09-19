@@ -1,0 +1,48 @@
+module TypeSafe
+  module Questions
+    class Question
+      attr_reader type: String
+      attr_reader instructions: json_content?
+      attr_reader criteria: untyped
+
+      def initialize: (String type, instructions: json_input?, criteria: untyped) -> void
+      def to_h: () -> Hash[String, untyped]
+      def to_json: (*untyped args) -> String
+      def ==: (untyped other) -> bool
+      alias eql? ==
+      def hash: () -> Integer
+    end
+
+    class Noul < Question
+      TYPE: String
+      KEYS: Array[String]
+
+      def initialize: (?instructions: json_input?, ?criteria: Hash[untyped, untyped]?) -> void
+      def self.normalize_criteria: (Hash[untyped, untyped]? criteria) -> Hash[String, json_content?]?
+    end
+
+    class Choice < Question
+      TYPE: String
+
+      def initialize: (?instructions: json_input?, criteria: Hash[untyped, untyped]) -> void
+      def self.normalize_criteria: (Hash[untyped, untyped] criteria) -> Hash[String, json_content?]
+    end
+
+    class Score < Question
+      TYPE: String
+      MIN_LEVELS: Integer
+
+      def initialize: (?instructions: json_input?, criteria: Array[untyped]) -> void
+      def self.normalize_criteria: (Array[untyped] criteria) -> Array[json_content]
+    end
+
+    module Normalizer
+      TYPES: Hash[String, singleton(Question)]
+
+      def self?.state: (json_input state) -> json_content
+      def self?.questions: (Hash[String | Symbol, question_input] questions) -> Hash[String, Hash[String, untyped]]
+      def self?.question: (question_input question, String name) -> Hash[String, untyped]
+      def self?.raw_question: (Hash[untyped, untyped] hash, String name) -> Hash[String, untyped]
+    end
+  end
+end

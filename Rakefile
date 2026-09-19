@@ -12,4 +12,9 @@ end
 
 RuboCop::RakeTask.new
 
-task default: %i[test rubocop]
+desc "Validate the RBS signatures in sig/"
+task :rbs do
+  sh "rbs -I sig -r logger -r uri -r net-http validate"
+end
+
+task default: %i[test rubocop rbs]

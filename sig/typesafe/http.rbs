@@ -1,0 +1,77 @@
+module TypeSafe
+  module HTTP
+    # Anything that can send a Request and return a Response, such as NetHTTPTransport.
+    interface _Transport
+      def call: (Request request) -> Response
+    end
+
+    class Request
+      attr_reader method: Symbol
+      attr_reader uri: URI::HTTP
+      attr_reader headers: Hash[String, String]
+      attr_reader body: String?
+      attr_reader timeout: Numeric
+
+      def initialize: (method: Symbol, uri: URI::HTTP, headers: Hash[String, String], body: String?, timeout: Numeric) -> void
+      def endpoint: () -> String
+      def with_headers: (Hash[String, String] extra) -> Request
+    end
+
+    class Response
+      attr_reader status: Integer
+      attr_reader headers: Hash[String, String]
+      attr_reader body: String
+      attr_reader request: Request?
+
+      def initialize: (status: Integer, headers: Hash[untyped, untyped], body: String?, ?request: Request?) -> void
+      def []: (String | Symbol name) -> String?
+      def request_id: () -> String?
+      def success?: () -> bool
+      def json: () -> untyped
+      def retry_after: () -> Float?
+    end
+
+    class ConnectionManager
+      IDLE_TIMEOUT: Integer
+
+      def initialize: (?clock: (^() -> Float)?) -> void
+      def connection_for: (URI::HTTP uri, timeout: Numeric) -> Net::HTTP
+      def discard: (URI::HTTP uri) -> void
+      def clear: () -> void
+      def size: () -> Integer
+    end
+
+    class NetHTTPTransport
+      TIMEOUT_ERRORS: Array[singleton(Exception)]
+      CONNECTION_ERRORS: Array[singleton(Exception)]
+
+      def initialize: () -> void
+      def call: (Request request) -> Response
+      def close: () -> void
+      def connection_manager: () -> ConnectionManager
+    end
+
+    class Retrier
+      MONOTONIC: Integer
+
+      attr_reader policy: RetryPolicy
+
+      def initialize: (RetryPolicy policy, ?sleeper: (^(Numeric) -> void)?, ?clock: (^() -> Float)?,
+                       ?random: RetryPolicy::_Random, ?on_retry: (^(Exception, Integer, Numeric) -> void)?) -> void
+      def run: [T] () { (Integer attempt) -> T } -> T
+    end
+
+    class Requestor
+      PROTECTED_HEADERS: Array[String]
+
+      attr_reader config: Configuration
+      attr_reader transport: _Transport
+
+      def initialize: (Configuration config, ?transport: _Transport?, ?sleeper: (^(Numeric) -> void)?,
+                       ?clock: (^() -> Float)?) -> void
+      def post: (String path, body: Hash[String, untyped], ?options: RequestOptions) -> Response
+      def get: (String path, ?options: RequestOptions) -> Response
+      def close: () -> void
+    end
+  end
+end

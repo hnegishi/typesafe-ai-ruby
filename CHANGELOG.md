@@ -24,3 +24,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep-alive connections reused per thread, dropped when idle, after a fork, or after a network error.
 - Request logging at info and full headers and bodies at debug, with credential headers redacted.
 - `TypeSafe::Instrumentation.subscribe(:request_begin | :request_end)` for metrics and tracing.
+- RBS signatures for the public API under `sig/`.

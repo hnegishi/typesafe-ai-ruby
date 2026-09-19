@@ -1,0 +1,131 @@
+module TypeSafe
+  module Responses
+    class InvalidField < StandardError
+      attr_reader field_path: String
+
+      def initialize: (String field_path, String message) -> void
+    end
+
+    module Reader
+      def self?.validation_error: (InvalidField error, HTTP::Response response, untyped json) -> APIResponseValidationError
+      def self?.hash!: (untyped value, String path) -> Hash[String, untyped]
+      def self?.string!: (untyped value, String path) -> String
+      def self?.number!: (untyped value, String path) -> Float
+      def self?.optional_integer: (untyped value, String path) -> Integer?
+      def self?.optional_string: (untyped value, String path) -> String?
+      def self?.number_map!: (untyped value, String path) -> Hash[String, Float]
+      def self?.integer_keyed: (Hash[String, untyped] hash, String path) -> Hash[Integer, untyped]
+    end
+
+    class Usage
+      attr_reader input_tokens: Integer?
+      attr_reader output_tokens: Integer?
+
+      def self.from_hash: (untyped hash, ?String path) -> Usage
+      def initialize: (?input_tokens: Integer?, ?output_tokens: Integer?) -> void
+      def to_h: () -> Hash[String, Integer?]
+      def ==: (untyped other) -> bool
+      alias eql? ==
+      def hash: () -> Integer
+    end
+
+    class Answer
+      TYPES: Hash[String, singleton(Answer)]
+
+      attr_reader type: String
+      attr_reader raw: Hash[String, untyped]
+
+      def self.from_hash: (untyped hash, String path) -> Answer
+      def initialize: (Hash[String, untyped] raw) -> void
+      def to_h: () -> Hash[String, untyped]
+      def to_json: (*untyped args) -> String
+      def ==: (untyped other) -> bool
+      alias eql? ==
+      def hash: () -> Integer
+    end
+
+    class NoulAnswer < Answer
+      attr_reader noul: Float
+
+      def self.parse: (Hash[String, untyped] data, String path) -> NoulAnswer
+      def initialize: (Hash[String, untyped] raw, noul: Float) -> void
+    end
+
+    class ChoiceAnswer < Answer
+      attr_reader choice: String
+      attr_reader probabilities: IndifferentHash
+      attr_reader confidence: Float
+
+      def self.parse: (Hash[String, untyped] data, String path) -> ChoiceAnswer
+      def initialize: (Hash[String, untyped] raw, choice: String, probabilities: Hash[String, Float], confidence: Float) -> void
+    end
+
+    class ScoreAnswer < Answer
+      attr_reader score: Float
+      attr_reader legend: Hash[Integer, json_content]
+      attr_reader probabilities: Hash[Integer, Float]
+      attr_reader confidence: Float
+
+      def self.parse: (Hash[String, untyped] data, String path) -> ScoreAnswer
+      def initialize: (Hash[String, untyped] raw, score: Float, legend: Hash[Integer, untyped],
+                       probabilities: Hash[Integer, Float], confidence: Float) -> void
+      def raw_legend: () -> Hash[String, untyped]
+      def raw_probabilities: () -> Hash[String, Numeric]
+    end
+
+    class UnknownAnswer < Answer
+      def self.parse: (Hash[String, untyped] data, String path) -> UnknownAnswer
+    end
+
+    class SystemOneResponse
+      attr_reader model: String
+      attr_reader usage: Usage
+      attr_reader answers: IndifferentHash
+      attr_reader http_response: HTTP::Response?
+      attr_reader raw: Hash[String, untyped]?
+
+      def self.from_http: (HTTP::Response response) -> SystemOneResponse
+      def self.parse: (untyped json, HTTP::Response? response) -> SystemOneResponse
+      def self.parse_answers: (untyped answers) -> Hash[String, Answer]
+      def initialize: (model: String, usage: Usage, answers: Hash[untyped, Answer], ?http_response: HTTP::Response?,
+                       ?raw: Hash[String, untyped]?) -> void
+      def []: (String | Symbol name) -> Answer?
+      def request_id: () -> String?
+      def nouls: () -> IndifferentHash
+      def choices: () -> IndifferentHash
+      def scores: () -> IndifferentHash
+      def to_h: () -> Hash[String, untyped]
+      def to_json: (*untyped args) -> String
+    end
+
+    class ModelCard
+      attr_reader name: String
+      attr_reader description: String?
+      attr_reader release_date: String?
+      attr_reader raw: Hash[String, untyped]
+
+      def self.from_hash: (untyped hash, String path) -> ModelCard
+      def initialize: (Hash[String, untyped] raw, name: String, ?description: String?, ?release_date: String?) -> void
+      def to_h: () -> Hash[String, untyped]
+      def ==: (untyped other) -> bool
+      alias eql? ==
+      def hash: () -> Integer
+    end
+
+    class ListModelsResponse
+      include Enumerable[ModelCard]
+
+      attr_reader models: Array[ModelCard]
+      attr_reader http_response: HTTP::Response?
+      attr_reader raw: Hash[String, untyped]?
+
+      def self.from_http: (HTTP::Response response) -> ListModelsResponse
+      def self.parse_models: (untyped list) -> Array[ModelCard]
+      def initialize: (models: Array[ModelCard], ?http_response: HTTP::Response?, ?raw: Hash[String, untyped]?) -> void
+      def each: () { (ModelCard) -> void } -> void
+      def names: () -> Array[String]
+      def request_id: () -> String?
+      def to_h: () -> Hash[String, untyped]
+    end
+  end
+end

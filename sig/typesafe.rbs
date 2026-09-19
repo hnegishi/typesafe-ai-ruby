@@ -1,0 +1,261 @@
+module TypeSafe
+  VERSION: String
+
+  # Text, a JSON object, or an array as accepted for state, instructions and criteria descriptions.
+  type json_content = String | Hash[String, untyped] | Array[untyped]
+
+  # Anything accepted as state or instructions before normalization.
+  type json_input = String | Hash[untyped, untyped] | Array[untyped]
+
+  # A question object or a raw Hash with a "type" key.
+  type question_input = Questions::Question | Hash[untyped, untyped]
+
+  type request_options_input = RequestOptions | Hash[Symbol | String, untyped] | nil
+
+  type retry_policy_input = RetryPolicy | Hash[Symbol | String, untyped] | nil
+
+  class Noul = Questions::Noul
+  class Choice = Questions::Choice
+  class Score = Questions::Score
+
+  def self.configuration: () -> Configuration
+  def self.configure: () { (Configuration) -> void } -> Configuration
+  def self.client: () -> Client
+  def self.reset_client!: () -> void
+  def self.reset!: () -> void
+  def self.noul: (?json_input? instructions, ?Hash[untyped, untyped]? criteria, **untyped named) -> Questions::Noul
+  def self.choice: (?json_input? instructions, ?Hash[untyped, untyped]? criteria, **untyped named) -> Questions::Choice
+  def self.score: (?json_input? instructions, ?Array[untyped]? criteria) -> Questions::Score
+
+  module Constants
+    API_KEY_ENV: String
+    BASE_URL_ENV: String
+    DEFAULT_MODEL_ENV: String
+    LOG_LEVEL_ENV: String
+    DEFAULT_BASE_URL: String
+    DEFAULT_MODEL: String
+    DEFAULT_TIMEOUT: Float
+    DEFAULT_LOG_LEVEL: Symbol
+    SYSTEM_ONE_PATH: String
+    MODELS_PATH: String
+    SDK_NAME: String
+    JSON_CONTENT_TYPE: String
+
+    module Headers
+      AUTHORIZATION: String
+      ACCEPT: String
+      CONTENT_TYPE: String
+      USER_AGENT: String
+      SDK: String
+      RUNTIME: String
+      RETRY_COUNT: String
+      REQUEST_ID: String
+    end
+  end
+
+  class Error < StandardError
+  end
+
+  class ConfigurationError < Error
+  end
+
+  class ValidationError < Error
+  end
+
+  class APIError < Error
+    STATUS_CLASSES: Hash[Integer, singleton(APIError)]
+
+    attr_reader status: Integer?
+    attr_reader body: untyped
+    attr_reader headers: Hash[String, String]
+    attr_reader endpoint: String?
+
+    def initialize: (?String? message, ?status: Integer?, ?body: untyped, ?headers: Hash[untyped, untyped], ?endpoint: String?) -> void
+    def request_id: () -> String?
+    def self.from_response: (HTTP::Response response) -> APIError
+    def self.class_for_status: (Integer? status) -> singleton(APIError)
+    def self.build_message: (status: Integer?, body: untyped, endpoint: String?, request_id: String?) -> String
+  end
+
+  class BadRequestError < APIError
+  end
+
+  class AuthenticationError < APIError
+  end
+
+  class PermissionDeniedError < APIError
+  end
+
+  class NotFoundError < APIError
+  end
+
+  class UnprocessableEntityError < APIError
+  end
+
+  class InternalServerError < APIError
+  end
+
+  class OverloadedError < InternalServerError
+  end
+
+  class RateLimitError < APIError
+    def retry_after: () -> Float?
+  end
+
+  class APIResponseValidationError < APIError
+    attr_reader field_path: String
+
+    def initialize: (?String? message, field_path: String, **untyped options) -> void
+  end
+
+  class APIConnectionError < Error
+  end
+
+  class APITimeoutError < APIConnectionError
+    attr_reader timeout: Numeric?
+
+    def initialize: (?String? message, ?timeout: Numeric?) -> void
+  end
+
+  class IndifferentHash < Hash[String, untyped]
+    def self.from: (Hash[untyped, untyped] hash) -> IndifferentHash
+    def []: (String | Symbol key) -> untyped
+    def []=: (String | Symbol key, untyped value) -> untyped
+    def fetch: (String | Symbol key, *untyped args) ?{ (String) -> untyped } -> untyped
+    def key?: (String | Symbol key) -> bool
+    def dig: (String | Symbol key, *untyped rest) -> untyped
+  end
+
+  class Configuration
+    LOG_LEVELS: Hash[Symbol, Integer]
+
+    attr_accessor api_key: String?
+    attr_accessor base_url: String?
+    attr_accessor model: String?
+    attr_accessor timeout: Numeric?
+    attr_accessor headers: Hash[untyped, untyped]?
+    attr_accessor logger: Logger?
+    attr_accessor log_level: (Symbol | String)?
+    attr_accessor retry_policy: retry_policy_input
+    attr_accessor transport: HTTP::_Transport?
+
+    def initialize: (?api_key: String?, ?base_url: String?, ?model: String?, ?timeout: Numeric?,
+                     ?headers: Hash[untyped, untyped]?, ?logger: Logger?, ?log_level: (Symbol | String)?,
+                     ?retry_policy: retry_policy_input, ?transport: HTTP::_Transport?) -> void
+    def to_h: () -> Hash[Symbol, untyped]
+    def resolve: (?env: _Env) -> Configuration
+    def logger_severity: () -> Integer
+
+    interface _Env
+      def []: (String name) -> String?
+    end
+  end
+
+  class RetryPolicy
+    DEFAULT_HTTP_STATUSES: Array[Integer]
+    DEFAULT: RetryPolicy
+
+    attr_reader max_retries: Integer
+    attr_reader backoff_initial: Numeric
+    attr_reader backoff_max: Numeric
+    attr_reader backoff_jitter: Numeric
+    attr_reader http_statuses: Array[Integer]
+    attr_reader respect_retry_after: bool
+    attr_reader max_retry_after: Numeric
+    attr_reader api_connection_error: bool
+    attr_reader api_timeout_error: bool
+    attr_reader timeout: Numeric?
+
+    def self.from: (retry_policy_input value, ?base: RetryPolicy?) -> RetryPolicy
+    def initialize: (?max_retries: Integer, ?backoff_initial: Numeric, ?backoff_max: Numeric, ?backoff_jitter: Numeric,
+                     ?http_statuses: _Each[Integer], ?respect_retry_after: bool, ?max_retry_after: Numeric,
+                     ?api_connection_error: bool, ?api_timeout_error: bool, ?timeout: Numeric?) -> void
+    def to_h: () -> Hash[Symbol, untyped]
+    def with: (**untyped overrides) -> RetryPolicy
+    def ==: (untyped other) -> bool
+    alias eql? ==
+    def hash: () -> Integer
+    def retry_status?: (Integer? status) -> bool
+    def retry_error?: (Exception error) -> bool
+    def delay_for: (Integer attempt, ?headers: Hash[untyped, untyped]?, ?random: _Random) -> Numeric
+
+    interface _Random
+      def rand: () -> Float
+    end
+  end
+
+  class RequestOptions
+    KEYS: Array[Symbol]
+
+    attr_reader timeout: Numeric?
+    attr_reader headers: Hash[String, String]
+    attr_reader extra_body: Hash[String, untyped]?
+    attr_reader retry_policy: retry_policy_input
+
+    def self.from: (request_options_input options) -> RequestOptions
+    def initialize: (?timeout: Numeric?, ?headers: Hash[untyped, untyped]?, ?extra_body: Hash[untyped, untyped]?,
+                     ?retry_policy: retry_policy_input) -> void
+  end
+
+  class Client
+    attr_reader config: Configuration
+    attr_reader models: Resources::Models
+
+    def initialize: (?api_key: String?, ?base_url: String?, ?model: String?, ?timeout: Numeric?,
+                     ?headers: Hash[untyped, untyped]?, ?logger: Logger?, ?log_level: (Symbol | String)?,
+                     ?retry_policy: retry_policy_input, ?transport: HTTP::_Transport?) -> void
+    def system_one: (state: json_input, questions: Hash[String | Symbol, question_input], ?model: String?,
+                     ?request_options: request_options_input) -> Responses::SystemOneResponse
+    def close: () -> void
+  end
+
+  module Resources
+    class Models
+      def initialize: (HTTP::Requestor requestor) -> void
+      def list: (?request_options: request_options_input) -> Responses::ListModelsResponse
+    end
+  end
+
+  module Logging
+    PROGNAME: String
+    REDACTED: String
+    REDACTED_HEADERS: Array[String]
+
+    def self?.log?: (Configuration config, Integer severity) -> bool
+    def self?.info: (Configuration config) { () -> String } -> void
+    def self?.debug: (Configuration config) { () -> String } -> void
+    def self?.redact_headers: (Hash[untyped, untyped] headers) -> Hash[untyped, untyped]
+    def self?.format_headers: (Hash[untyped, untyped] headers) -> String
+  end
+
+  module Instrumentation
+    TOPICS: Array[Symbol]
+
+    class RequestBeginEvent
+      attr_reader method: Symbol
+      attr_reader path: String
+      attr_reader user_data: Hash[untyped, untyped]
+
+      def initialize: (method: Symbol, path: String) -> void
+    end
+
+    class RequestEndEvent
+      attr_reader method: Symbol
+      attr_reader path: String
+      attr_reader http_status: Integer?
+      attr_reader duration: Float
+      attr_reader num_retries: Integer
+      attr_reader request_id: String?
+      attr_reader error: Exception?
+      attr_reader user_data: Hash[untyped, untyped]
+
+      def initialize: (method: Symbol, path: String, http_status: Integer?, duration: Float, num_retries: Integer,
+                       request_id: String?, error: Exception?, user_data: Hash[untyped, untyped]) -> void
+    end
+
+    def self.subscribe: (Symbol topic, ?untyped name) { (RequestBeginEvent | RequestEndEvent) -> void } -> untyped
+    def self.unsubscribe: (Symbol topic, untyped name) -> void
+    def self.notify: (Symbol topic, untyped event) -> void
+    def self.reset!: () -> void
+  end
+end
