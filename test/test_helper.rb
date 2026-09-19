@@ -18,6 +18,17 @@ module Test
   module Unit
     class TestCase
       include TypeSafe::TestData
+
+      setup do
+        TypeSafe.configure do |c|
+          c.api_key = TypeSafe::TestData::API_KEY
+          c.logger = Logger.new(File::NULL)
+        end
+      end
+
+      teardown do
+        TypeSafe.reset!
+      end
     end
   end
 end
