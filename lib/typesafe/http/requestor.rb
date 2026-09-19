@@ -45,6 +45,7 @@ module TypeSafe
       end
 
       def send_once(request)
+        log_request(request)
         started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         response = transport.call(request)
         log_response(request, response, started)
@@ -87,25 +88,26 @@ module TypeSafe
         "#{Constants::SDK_NAME}/#{VERSION}"
       end
 
-      def log_response(request, response, started)
-        return unless log?(Logger::INFO)
+      def log_request(request)
+        Logging.debug(config) do
+          "-> #{request.endpoint} headers={#{Logging.format_headers(request.headers)}} body=#{request.body.inspect}"
+        end
+      end
 
+      def log_response(request, response, started)
         elapsed = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
-        config.logger.info("typesafe") do
+        Logging.info(config) do
           "#{request.endpoint} -> #{response.status} (#{elapsed}ms) request_id=#{response.request_id || "-"}"
+        end
+        Logging.debug(config) do
+          "<- #{response.status} headers={#{Logging.format_headers(response.headers)}} body=#{response.body.inspect}"
         end
       end
 
       def log_retry(error, attempt, delay)
-        return unless log?(Logger::INFO)
-
-        config.logger.info("typesafe") do
+        Logging.info(config) do
           "retry #{attempt + 1} in #{delay.round(3)}s after #{error.class.name.split("::").last}: #{error.message}"
         end
-      end
-
-      def log?(severity)
-        config.logger && config.logger_severity <= severity
       end
     end
   end

@@ -126,6 +126,16 @@ module TypeSafe
         build_requestor(FakeTransport.new(OK), logger: Logger.new(io), log_level: :warn).get("/v1/models")
         assert_empty io.string
       end
+
+      should "log redacted headers and bodies at debug" do
+        io = StringIO.new
+        transport = FakeTransport.new({ status: 200, headers: { "content-type" => "application/json" }, body: '{"a":1}' })
+        build_requestor(transport, logger: Logger.new(io), log_level: :debug)
+          .post("/v1/systemone", body: { "state" => "s" })
+        assert_match(%r{-> POST https://api.typesafe.ai/v1/systemone headers=\{.*Authorization: \[REDACTED\].*\} body="\{\\"state\\":\\"s\\"\}"}, io.string)
+        assert_match(%r{<- 200 headers=\{content-type: application/json\} body="\{\\"a\\":1\}"}, io.string)
+        assert_no_match(/Bearer k/, io.string)
+      end
     end
   end
 end
