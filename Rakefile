@@ -6,8 +6,17 @@ require "rubocop/rake_task"
 
 Rake::TestTask.new(:test) do |t|
   t.libs << "test" << "lib"
-  t.test_files = FileList["test/**/*_test.rb"]
+  t.test_files = FileList["test/typesafe/**/*_test.rb"]
   t.warning = true
+end
+
+namespace :test do
+  desc "Run the live API tests (requires TYPESAFE_API_KEY)"
+  Rake::TestTask.new(:integration) do |t|
+    t.libs << "test" << "lib"
+    t.test_files = FileList["test/integration/**/*_test.rb"]
+    t.warning = true
+  end
 end
 
 RuboCop::RakeTask.new
