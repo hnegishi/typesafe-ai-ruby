@@ -27,12 +27,18 @@ gem install typesafe-ai-ruby
 
 ## Usage
 
-Get an API key from the [TypeSafe console](https://console.typesafe.ai/settings/keys) and set it as `TYPESAFE_API_KEY`, or pass it to the client directly.
+Get an API key from the [TypeSafe console](https://console.typesafe.ai/settings/keys) and export it as `TYPESAFE_API_KEY`:
+
+```sh
+export TYPESAFE_API_KEY=...
+```
+
+The client reads it automatically, so `TypeSafe::Client.new` needs no arguments. You can also pass `api_key:` explicitly.
 
 ```ruby
 require "typesafe-ai-ruby"
 
-client = TypeSafe::Client.new(api_key: ENV["TYPESAFE_API_KEY"])
+client = TypeSafe::Client.new
 
 response = client.system_one(
   state: "I was charged twice. Please fix this ASAP.",
