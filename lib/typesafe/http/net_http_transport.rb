@@ -2,7 +2,7 @@
 
 module TypeSafe
   module HTTP
-    # Default transport built on Net::HTTP. Opens one connection per call.
+    # Default transport built on Net::HTTP with keep-alive connections managed per thread.
     #
     # Any object responding to call(request) and returning a Response can replace it,
     # which is how tests stub the network and how alternative HTTP stacks can be plugged in.
@@ -13,32 +13,53 @@ module TypeSafe
         Net::HTTPBadResponse, Net::ProtocolError
       ].freeze
 
-      def call(request)
-        http = build_http(request.uri, request.timeout)
-        raw = http.start { |connection| connection.request(build_request(request)) }
-        wrap_response(raw, request)
-      rescue *TIMEOUT_ERRORS => e
-        raise APITimeoutError.new("#{request.endpoint} timed out after #{request.timeout}s (#{e.class})",
-                                  timeout: request.timeout)
-      rescue *CONNECTION_ERRORS => e
-        raise APIConnectionError, "#{request.endpoint} failed: #{e.class}: #{e.message}"
+      def initialize
+        @managers = {}
+        @mutex = Mutex.new
       end
 
-      def close; end
+      def call(request)
+        manager = connection_manager
+        http = manager.connection_for(request.uri, timeout: request.timeout)
+        wrap_response(http.request(build_request(request)), request)
+      rescue *TIMEOUT_ERRORS => e
+        manager&.discard(request.uri)
+        raise timeout_error(request, e)
+      rescue *CONNECTION_ERRORS => e
+        manager&.discard(request.uri)
+        raise connection_error(request, e)
+      end
+
+      # Close every connection held for any thread.
+      def close
+        @mutex.synchronize do
+          @managers.each_value(&:clear)
+          @managers.clear
+        end
+      end
+
+      # The manager for the calling thread, creating it on first use and releasing
+      # managers whose threads have finished.
+      def connection_manager
+        @mutex.synchronize do
+          @managers.delete_if { |thread, manager| !thread.alive? && (manager.clear || true) }
+          @managers[Thread.current] ||= ConnectionManager.new
+        end
+      end
 
       private
 
-      def wrap_response(raw, request)
-        Response.new(status: raw.code.to_i, headers: raw.each_header.to_h, body: raw.body, request: request)
+      def timeout_error(request, error)
+        APITimeoutError.new("#{request.endpoint} timed out after #{request.timeout}s (#{error.class})",
+                            timeout: request.timeout)
       end
 
-      def build_http(uri, timeout)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = uri.scheme == "https"
-        http.open_timeout = timeout
-        http.read_timeout = timeout
-        http.write_timeout = timeout
-        http
+      def connection_error(request, error)
+        APIConnectionError.new("#{request.endpoint} failed: #{error.class}: #{error.message}")
+      end
+
+      def wrap_response(raw, request)
+        Response.new(status: raw.code.to_i, headers: raw.each_header.to_h, body: raw.body, request: request)
       end
 
       def build_request(request)
