@@ -26,6 +26,8 @@ require_relative "typesafe/responses/usage"
 require_relative "typesafe/responses/answer"
 require_relative "typesafe/responses/system_one_response"
 require_relative "typesafe/responses/list_models_response"
+require_relative "typesafe/resources/models"
+require_relative "typesafe/client"
 
 # Ruby client for the TypeSafe AI System One API.
 #
