@@ -66,15 +66,15 @@ response.model                            # => "jev-1.13.0"
 
 ### Questions
 
-Questions are plain Hashes in the shape of the [API reference](https://docs.typesafe.ai/api). Each one has a `type`, optional `instructions`, and `criteria` that depend on the type. `instructions` and every description can be a string, a Hash, or an Array when a sentence is not enough.
+Questions are plain Hashes matching the [API reference](https://docs.typesafe.ai/api): a `type`, optional `instructions`, and type-specific `criteria`. Instructions and descriptions can be a string, a Hash, or an Array.
 
 - `noul` asks a yes/no question and returns the probability of yes. Criteria are optional: `criteria: { true: "Spam", false: "A real conversation" }`.
 - `choice` picks one option from a set. Criteria are required; use `nil` when the name speaks for itself.
 - `score` rates the state against ordered levels. Criteria are an Array of at least two levels, and each level's index is its score.
 
-Known types are validated before anything is sent. Extra keys are sent to the API untouched, so new API fields work before this library knows about them.
+Extra keys are passed through untouched, so new API fields work before this library knows about them.
 
-To define questions once and reuse them, `TypeSafe::Noul`, `TypeSafe::Choice` and `TypeSafe::Score` are frozen value objects that can live in constants and be passed in place of a Hash:
+To reuse a question, keep a `TypeSafe::Noul`, `TypeSafe::Choice` or `TypeSafe::Score` in a constant and pass it in place of a Hash:
 
 ```ruby
 DEPARTMENT = TypeSafe::Choice.new(instructions: "Which team should handle this?",
@@ -125,7 +125,7 @@ Options can be passed to `TypeSafe::Client.new` or set once for the default clie
 
 ```ruby
 TypeSafe.configure do |c|
-  c.api_key = ENV.fetch("TYPESAFE_API_KEY")   # TYPESAFE_API_KEY
+  c.api_key = ENV.fetch("TYPESAFE_API_KEY")
   c.model = "jev-1.13.0"                       # TYPESAFE_DEFAULT_MODEL, default jev-latest
   c.base_url = "https://api.typesafe.ai"       # TYPESAFE_BASE_URL
   c.timeout = 10                               # seconds per attempt
@@ -133,7 +133,7 @@ TypeSafe.configure do |c|
   c.log_level = :info                          # TYPESAFE_LOG_LEVEL, default :warn
 end
 
-TypeSafe.client.system_one(state: "...", questions: { urgent: TypeSafe.noul("Is this urgent?") })
+TypeSafe.client.system_one(state: "...", questions: { urgent: { type: :noul, instructions: "Is this urgent?" } })
 ```
 
 Per-call overrides go in `request_options`:
