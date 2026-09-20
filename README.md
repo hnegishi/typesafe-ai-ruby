@@ -43,15 +43,17 @@ client = TypeSafe::Client.new
 response = client.system_one(
   state: "I was charged twice. Please fix this ASAP.",
   questions: {
-    department: TypeSafe::Choice.new(
+    department: {
+      type: :choice,
       instructions: "Which team should handle this?",
       criteria: { billing: "Payment issues", technical: "Bugs or integrations", sales: "Pricing questions" }
-    ),
-    frustration: TypeSafe::Score.new(
+    },
+    frustration: {
+      type: :score,
       instructions: "How frustrated is the customer?",
       criteria: ["Calm", "Frustrated but civil", "Very angry"]
-    ),
-    is_urgent: TypeSafe::Noul.new(instructions: "Does the message convey urgency?")
+    },
+    is_urgent: { type: :noul, instructions: "Does the message convey urgency?" }
   }
 )
 
@@ -64,21 +66,22 @@ response.model                            # => "jev-1.13.0"
 
 ### Questions
 
-There are three question types. `instructions` and every description can be a string, a Hash, or an Array when a sentence is not enough.
+Questions are plain Hashes in the shape of the [API reference](https://docs.typesafe.ai/api). Each one has a `type`, optional `instructions`, and `criteria` that depend on the type. `instructions` and every description can be a string, a Hash, or an Array when a sentence is not enough.
 
-- `TypeSafe::Noul` asks a yes/no question and returns the probability of yes. Criteria are optional: `criteria: { true: "Spam", false: "A real conversation" }`.
-- `TypeSafe::Choice` picks one option from a set. Criteria are required; use `nil` when the name speaks for itself.
-- `TypeSafe::Score` rates the state against ordered levels. Criteria are an Array of at least two levels, and each level's index is its score.
+- `noul` asks a yes/no question and returns the probability of yes. Criteria are optional: `criteria: { true: "Spam", false: "A real conversation" }`.
+- `choice` picks one option from a set. Criteria are required; use `nil` when the name speaks for itself.
+- `score` rates the state against ordered levels. Criteria are an Array of at least two levels, and each level's index is its score.
 
-The shorthand helpers take the instructions first:
+Known types are validated before anything is sent. Extra keys are sent to the API untouched, so new API fields work before this library knows about them.
+
+To define questions once and reuse them, `TypeSafe::Noul`, `TypeSafe::Choice` and `TypeSafe::Score` are frozen value objects that can live in constants and be passed in place of a Hash:
 
 ```ruby
-TypeSafe.noul("Is this spam?")
-TypeSafe.choice("What is the tone?", calm: nil, frustrated: nil, angry: nil)
-TypeSafe.score("How urgent is this?", ["Can wait", "This week", "Today"])
-```
+DEPARTMENT = TypeSafe::Choice.new(instructions: "Which team should handle this?",
+                                  criteria: { billing: nil, technical: nil, sales: nil })
 
-You can also pass a plain Hash with a `type` key. Extra keys are sent to the API untouched, so new API fields work before this library knows about them.
+client.system_one(state: ticket, questions: { department: DEPARTMENT })
+```
 
 `state` is whatever the questions are about: a String, a Hash, or an Array. Symbols are converted to strings, and objects that respond to `as_json` are converted through it.
 
