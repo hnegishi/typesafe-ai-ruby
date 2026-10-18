@@ -8,7 +8,8 @@ module TypeSafe
       should "pick the error class from the status" do
         {
           400 => BadRequestError, 401 => AuthenticationError, 403 => PermissionDeniedError,
-          404 => NotFoundError, 422 => UnprocessableEntityError, 429 => RateLimitError,
+          404 => NotFoundError, 413 => PayloadTooLargeError, 415 => UnsupportedMediaTypeError,
+          422 => UnprocessableEntityError, 429 => RateLimitError,
           500 => InternalServerError, 503 => InternalServerError, 529 => OverloadedError, 418 => APIError
         }.each do |status, klass|
           e = APIError.from_response(build_response(status, ""))

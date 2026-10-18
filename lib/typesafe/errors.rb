@@ -65,6 +65,10 @@ module TypeSafe
   class PermissionDeniedError < APIError; end
   # The resource was not found (404).
   class NotFoundError < APIError; end
+  # The request body or an image is over a size limit (413).
+  class PayloadTooLargeError < APIError; end
+  # The request used an unsupported Content-Encoding (415).
+  class UnsupportedMediaTypeError < APIError; end
   # The request failed server-side validation (422).
   class UnprocessableEntityError < APIError; end
   # The server failed to process the request (5xx).
@@ -96,6 +100,8 @@ module TypeSafe
     401 => AuthenticationError,
     403 => PermissionDeniedError,
     404 => NotFoundError,
+    413 => PayloadTooLargeError,
+    415 => UnsupportedMediaTypeError,
     422 => UnprocessableEntityError,
     429 => RateLimitError,
     529 => OverloadedError
