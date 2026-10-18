@@ -20,9 +20,10 @@ module TypeSafe
         @clock = clock
       end
 
-      # Send a POST and return the successful response.
-      def post(path, body:, options: RequestOptions.new)
-        execute(build_request(:post, path, body: body, options: options), options)
+      # Send a POST and return the successful response. With assets (reference => Image), the
+      # body goes out as multipart/form-data with one file part per image.
+      def post(path, body:, options: RequestOptions.new, assets: {})
+        execute(build_request(:post, path, body: body, options: options, assets: assets), options)
       end
 
       # Send a GET and return the successful response.
@@ -97,18 +98,28 @@ module TypeSafe
         RetryPolicy.from(options.retry_policy, base: config.retry_policy)
       end
 
-      def build_request(method, path, body: nil, options: RequestOptions.new)
-        encoded = body.nil? ? nil : JSON.generate(body)
+      def build_request(method, path, body: nil, options: RequestOptions.new, assets: {})
+        encoded, content_type, summary = encode_body(body, assets)
         Request.new(
           method: method,
           uri: URI.parse("#{config.base_url}#{path}"),
-          headers: build_headers(options.headers, body: encoded, danger_zone: options.danger_zone),
+          headers: build_headers(options.headers, content_type: content_type, danger_zone: options.danger_zone),
           body: encoded,
+          body_summary: summary,
           timeout: options.timeout || config.timeout
         )
       end
 
-      def build_headers(extra, body:, danger_zone: [])
+      # [body, content type, log summary] for a JSON body, or a multipart body when assets are present.
+      def encode_body(body, assets)
+        return [nil, nil, nil] if body.nil?
+        return [JSON.generate(body), Constants::JSON_CONTENT_TYPE, nil] if assets.empty?
+
+        encoded = MultipartEncoder.build(body, assets)
+        [encoded.body, encoded.content_type, encoded.summary]
+      end
+
+      def build_headers(extra, content_type:, danger_zone: [])
         headers = strip_protected(config.headers).merge(strip_protected(extra))
         headers.merge!(danger_zone_headers(danger_zone))
         headers[Constants::Headers::AUTHORIZATION] = "Bearer #{config.api_key}"
@@ -116,7 +127,7 @@ module TypeSafe
         headers[Constants::Headers::USER_AGENT] = sdk_identifier
         headers[Constants::Headers::SDK] = sdk_identifier
         headers[Constants::Headers::RUNTIME] = Util.runtime
-        headers[Constants::Headers::CONTENT_TYPE] = Constants::JSON_CONTENT_TYPE if body
+        headers[Constants::Headers::CONTENT_TYPE] = content_type if content_type
         headers
       end
 
@@ -134,7 +145,8 @@ module TypeSafe
 
       def log_request(request)
         Logging.debug(config) do
-          "-> #{request.endpoint} headers={#{Logging.format_headers(request.headers)}} body=#{request.body.inspect}"
+          "-> #{request.endpoint} headers={#{Logging.format_headers(request.headers)}} " \
+            "body=#{request.body_summary.inspect}"
         end
       end
 

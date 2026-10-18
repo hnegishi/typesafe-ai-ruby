@@ -5,13 +5,16 @@ module TypeSafe
     # An outgoing HTTP request: method, absolute URI, headers, encoded body and per-attempt timeout.
     class Request
       attr_reader :method, :uri, :headers, :body, :timeout
+      # What to show for the body in debug logs; multipart bodies summarize their file parts.
+      attr_reader :body_summary
 
-      def initialize(method:, uri:, headers:, body:, timeout:)
+      def initialize(method:, uri:, headers:, body:, timeout:, body_summary: nil)
         @method = method
         @uri = uri
         @headers = headers.freeze
         @body = body
         @timeout = timeout
+        @body_summary = body_summary || body
         freeze
       end
 
@@ -23,7 +26,8 @@ module TypeSafe
 
       # A copy with additional headers merged in.
       def with_headers(extra)
-        self.class.new(method: method, uri: uri, headers: headers.merge(extra), body: body, timeout: timeout)
+        self.class.new(method: method, uri: uri, headers: headers.merge(extra), body: body, timeout: timeout,
+                       body_summary: body_summary)
       end
     end
   end
