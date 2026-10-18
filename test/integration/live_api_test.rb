@@ -83,6 +83,54 @@ module TypeSafe
       end
     end
 
+    context "images (experimental)" do
+      setup do
+        @photo = Image.open(File.expand_path("../fixtures/red_square.png", __dir__))
+      end
+
+      should "answer questions about an image placed in the state" do
+        response = @client.system_one(
+          state: { photo: @photo },
+          questions: {
+            color: Choice.new(instructions: "What color is the square in `photo`?",
+                              criteria: { red: nil, green: nil, blue: nil }),
+            has_square: Noul.new(instructions: "Does `photo` contain a filled square?")
+          },
+          danger_zone: :images
+        )
+        assert_equal "red", response.choices[:color].choice
+        assert_operator response.nouls[:has_square].noul, :>, 0.5
+        assert_operator response.usage.input_tokens, :>, 0
+      end
+
+      should "locate a box with jev-preview" do
+        response = @client.system_one(
+          state: { photo: @photo },
+          questions: { square: TypeSafe.box("the red square in `photo`") },
+          model: "jev-preview", danger_zone: :images
+        )
+        box = response.boxes[:square].box
+        assert_match(/\Ajev-1\.14/, response.model)
+        [box.top, box.bottom, box.left, box.right].each { |edge| assert_includes 0.0..1.0, edge }
+        assert_operator box.left, :<, box.right
+        assert_operator box.top, :<, box.bottom
+        # The square spans x 100..200 and y 120..220 of a 280 px image; its center must fall inside the box.
+        assert_includes box.left..box.right, 150.0 / 280
+        assert_includes box.top..box.bottom, 170.0 / 280
+        assert_includes 0.0..1.0, response.boxes[:square].confidence if response.boxes[:square].confidence
+      end
+
+      should "send an image written into text through assets" do
+        response = @client.system_one(
+          state: "Reference picture: #{@photo}",
+          questions: { color: Choice.new(instructions: "What color is the square in the reference picture?",
+                                         criteria: { red: nil, green: nil, blue: nil }) },
+          assets: [@photo], danger_zone: :images
+        )
+        assert_equal "red", response.choices[:color].choice
+      end
+    end
+
     should "raise AuthenticationError for an invalid key" do
       client = Client.new(api_key: "sk-invalid", logger: Logger.new(File::NULL), retry_policy: { max_retries: 0 })
       e = assert_raise(AuthenticationError) { client.models.list }
