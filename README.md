@@ -119,6 +119,40 @@ end
 
 Malformed questions raise `TypeSafe::ValidationError` before anything is sent.
 
+### Images (experimental)
+
+Jev can look at PNG and JPEG images. The feature is behind a "danger zone" flag because its format and limits can still change, so turn it on per client or per call with `danger_zone: :images`. See the [images guide](https://docs.typesafe.ai/images) for limits and tips.
+
+Build a `TypeSafe::Image` from bytes, a file path, or base64 text, and place it anywhere text can go. It is uploaded once and referenced from the request:
+
+```ruby
+door = TypeSafe::Image.open("door-camera.jpg")
+
+response = client.system_one(
+  state: { door: door },
+  questions: {
+    person_present: { type: :noul, instructions: "Is there a person in `door`?" },
+    mug: { type: :box, instructions: "the coffee mug in `door`" }
+  },
+  model: "jev-preview",
+  danger_zone: :images
+)
+
+response.nouls[:person_present].noul   # => 0.97
+response.boxes[:mug].box.to_a          # => [left, top, right, bottom], as fractions of the image size
+```
+
+A `box` question returns where something is in an image and needs Jev 1.14 (`jev-preview`). To write an image into a sentence, interpolate it and pass it in `assets:`:
+
+```ruby
+client.system_one(
+  state: { photo: door },
+  questions: { same: TypeSafe.noul("Is the dog in `photo` the dog in #{poster}?") },
+  assets: [poster],
+  danger_zone: :images
+)
+```
+
 ## Configuration
 
 Options can be passed to `TypeSafe::Client.new` or set once for the default client. Explicit options win over environment variables, which win over the defaults.
