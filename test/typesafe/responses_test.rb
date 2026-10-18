@@ -52,6 +52,31 @@ module TypeSafe
         assert_equal ["frustration"], response.scores.keys
       end
 
+      should "expose box answers" do
+        body = { "model" => "jev-1.14.0", "usage" => {},
+                 "answers" => { "mug" => { "type" => "box",
+                                           "box" => { "top" => 0.25, "bottom" => 0.82, "left" => 0.44, "right" => 0.84 },
+                                           "confidence" => 0.92 },
+                                "cup" => { "type" => "box", "box" => { "top" => 0, "bottom" => 1, "left" => 0, "right" => 1 },
+                                           "confidence" => nil } } }
+        response = Responses::SystemOneResponse.from_http(http(body))
+        mug = response.boxes[:mug]
+        assert_instance_of Responses::BoxAnswer, mug
+        assert_in_delta 0.25, mug.box.top
+        assert_in_delta 0.82, mug.box.bottom
+        assert_in_delta 0.44, mug.box.left
+        assert_in_delta 0.84, mug.box.right
+        assert_in_delta 0.40, mug.box.width
+        assert_in_delta 0.57, mug.box.height
+        assert_equal [0.44, 0.25, 0.84, 0.82], mug.box.to_a
+        assert_equal [440, 125, 840, 410], mug.box.to_pixels(width: 1000, height: 500)
+        assert_equal({ "top" => 0.25, "bottom" => 0.82, "left" => 0.44, "right" => 0.84 }, mug.box.to_h)
+        assert_in_delta 0.92, mug.confidence
+        assert_nil response.boxes[:cup].confidence
+        assert_equal %w[cup mug], response.boxes.keys.sort
+        assert_empty response.choices
+      end
+
       should "keep unknown answer types and extra fields" do
         body = { "model" => "m", "usage" => {},
                  "answers" => { "q" => { "type" => "rank", "order" => %w[a b] },
@@ -72,6 +97,9 @@ module TypeSafe
           "answers.q.confidence" => { "model" => "m", "usage" => {},
                                       "answers" => { "q" => { "type" => "choice", "choice" => "a",
                                                               "probabilities" => { "a" => 1 } } } },
+          "answers.q.box.left" => { "model" => "m", "usage" => {},
+                                    "answers" => { "q" => { "type" => "box",
+                                                            "box" => { "top" => 0, "bottom" => 1, "right" => 1 } } } },
           "answers.q.legend.x" => { "model" => "m", "usage" => {},
                                     "answers" => { "q" => { "type" => "score", "score" => 1, "legend" => { "x" => "a" },
                                                             "probabilities" => { "0" => 1 }, "confidence" => 1 } } }

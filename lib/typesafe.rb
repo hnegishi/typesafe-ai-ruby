@@ -19,6 +19,7 @@ require_relative "typesafe/questions/question"
 require_relative "typesafe/questions/noul"
 require_relative "typesafe/questions/choice"
 require_relative "typesafe/questions/score"
+require_relative "typesafe/questions/box"
 require_relative "typesafe/questions/normalizer"
 require_relative "typesafe/http/request"
 require_relative "typesafe/http/response"
@@ -41,6 +42,7 @@ module TypeSafe
   Noul = Questions::Noul
   Choice = Questions::Choice
   Score = Questions::Score
+  Box = Questions::Box
 
   class << self
     # Global settings used by .client. Mutate through .configure.
@@ -100,6 +102,14 @@ module TypeSafe
     #   TypeSafe.score("How urgent is this?", ["can wait", "this week", "today"])
     def score(instructions = nil, criteria = nil)
       Score.new(instructions: instructions, criteria: criteria)
+    end
+
+    # Build a box question.
+    #
+    # For example:
+    #   TypeSafe.box("the coffee mug in `photo`")
+    def box(instructions = nil)
+      Box.new(instructions: instructions)
     end
 
     private

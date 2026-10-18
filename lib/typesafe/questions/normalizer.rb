@@ -6,7 +6,7 @@ module TypeSafe
     # mistakes before a request is sent.
     module Normalizer
       TYPES = {
-        Noul::TYPE => Noul, Choice::TYPE => Choice, Score::TYPE => Score
+        Noul::TYPE => Noul, Choice::TYPE => Choice, Score::TYPE => Score, Box::TYPE => Box
       }.freeze
 
       module_function
@@ -53,7 +53,11 @@ module TypeSafe
         end
 
         klass = TYPES[type]
-        wire["criteria"] = klass.normalize_criteria(wire["criteria"]) if klass && requires_criteria?(klass, wire)
+        if klass == Box
+          raise ValidationError, "question #{name.inspect}: box questions take no criteria" if wire.key?("criteria")
+        elsif klass && requires_criteria?(klass, wire)
+          wire["criteria"] = klass.normalize_criteria(wire["criteria"])
+        end
         wire
       end
 

@@ -71,6 +71,10 @@ module TypeSafe
         answers_of(ScoreAnswer)
       end
 
+      def boxes
+        answers_of(BoxAnswer)
+      end
+
       def to_h
         raw || { "model" => model, "usage" => usage.to_h, "answers" => answers.transform_values(&:to_h) }
       end

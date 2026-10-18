@@ -8,6 +8,7 @@ module TypeSafe
       assert_equal Questions::Noul, Noul
       assert_equal Questions::Choice, Choice
       assert_equal Questions::Score, Score
+      assert_equal Questions::Box, Box
     end
 
     should "have a semantic version" do

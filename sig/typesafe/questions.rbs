@@ -36,6 +36,12 @@ module TypeSafe
       def self.normalize_criteria: (Array[untyped] criteria) -> Array[json_content]
     end
 
+    class Box < Question
+      TYPE: String
+
+      def initialize: (?instructions: json_input?) -> void
+    end
+
     module Normalizer
       TYPES: Hash[String, singleton(Question)]
 

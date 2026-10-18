@@ -20,6 +20,7 @@ module TypeSafe
   class Noul = Questions::Noul
   class Choice = Questions::Choice
   class Score = Questions::Score
+  class Box = Questions::Box
 
   def self.configuration: () -> Configuration
   def self.configure: () { (Configuration) -> void } -> Configuration
@@ -29,6 +30,7 @@ module TypeSafe
   def self.noul: (?json_input? instructions, ?Hash[untyped, untyped]? criteria, **untyped named) -> Questions::Noul
   def self.choice: (?json_input? instructions, ?Hash[untyped, untyped]? criteria, **untyped named) -> Questions::Choice
   def self.score: (?json_input? instructions, ?Array[untyped]? criteria) -> Questions::Score
+  def self.box: (?json_input? instructions) -> Questions::Box
 
   module Constants
     API_KEY_ENV: String

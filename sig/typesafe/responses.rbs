@@ -73,6 +73,32 @@ module TypeSafe
       def raw_probabilities: () -> Hash[String, Numeric]
     end
 
+    class BoxCoordinates
+      attr_reader top: Float
+      attr_reader bottom: Float
+      attr_reader left: Float
+      attr_reader right: Float
+
+      def self.parse: (untyped data, String path) -> BoxCoordinates
+      def initialize: (top: Float, bottom: Float, left: Float, right: Float) -> void
+      def width: () -> Float
+      def height: () -> Float
+      def to_a: () -> [Float, Float, Float, Float]
+      def to_pixels: (width: Numeric, height: Numeric) -> [Integer, Integer, Integer, Integer]
+      def to_h: () -> Hash[String, Float]
+      def ==: (untyped other) -> bool
+      alias eql? ==
+      def hash: () -> Integer
+    end
+
+    class BoxAnswer < Answer
+      attr_reader box: BoxCoordinates
+      attr_reader confidence: Float?
+
+      def self.parse: (Hash[String, untyped] data, String path) -> BoxAnswer
+      def initialize: (Hash[String, untyped] raw, box: BoxCoordinates, confidence: Float?) -> void
+    end
+
     class UnknownAnswer < Answer
       def self.parse: (Hash[String, untyped] data, String path) -> UnknownAnswer
     end
@@ -94,6 +120,7 @@ module TypeSafe
       def nouls: () -> IndifferentHash
       def choices: () -> IndifferentHash
       def scores: () -> IndifferentHash
+      def boxes: () -> IndifferentHash
       def to_h: () -> Hash[String, untyped]
       def to_json: (*untyped args) -> String
     end

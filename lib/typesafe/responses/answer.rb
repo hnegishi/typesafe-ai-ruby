@@ -129,6 +129,79 @@ module TypeSafe
       end
     end
 
+    # The four edges of a box as fractions of the image's width (left, right) and height
+    # (top, bottom), measured from the top-left corner.
+    class BoxCoordinates
+      attr_reader :top, :bottom, :left, :right
+
+      def self.parse(data, path)
+        box = Reader.hash!(data, path)
+        new(**%i[top bottom left right].to_h { |edge| [edge, Reader.number!(box[edge.to_s], "#{path}.#{edge}")] })
+      end
+
+      def initialize(top:, bottom:, left:, right:)
+        @top = top
+        @bottom = bottom
+        @left = left
+        @right = right
+        freeze
+      end
+
+      def width
+        right - left
+      end
+
+      def height
+        bottom - top
+      end
+
+      # [left, top, right, bottom], the order most image libraries use for a crop box.
+      def to_a
+        [left, top, right, bottom]
+      end
+
+      # [left, top, right, bottom] in integer pixels for an image of the given size.
+      def to_pixels(width:, height:)
+        [(left * width).round, (top * height).round, (right * width).round, (bottom * height).round]
+      end
+
+      def to_h
+        { "top" => top, "bottom" => bottom, "left" => left, "right" => right }
+      end
+
+      def ==(other)
+        other.is_a?(BoxCoordinates) && to_a == other.to_a
+      end
+      alias eql? ==
+
+      def hash
+        to_a.hash
+      end
+    end
+
+    # A located box with its confidence.
+    class BoxAnswer < Answer
+      attr_reader :box
+      # Confidence from 0 to 1, or nil when the API did not report it.
+      attr_reader :confidence
+
+      def self.parse(data, path)
+        confidence = data["confidence"]
+        new(
+          data,
+          box: BoxCoordinates.parse(data["box"], "#{path}.box"),
+          confidence: confidence.nil? ? nil : Reader.number!(confidence, "#{path}.confidence")
+        )
+      end
+
+      def initialize(raw, box:, confidence:)
+        @box = box
+        @confidence = confidence
+        super(raw)
+        freeze
+      end
+    end
+
     # An answer whose type this gem does not recognize. Only #raw is available.
     class UnknownAnswer < Answer
       def self.parse(data, _path)
@@ -137,7 +210,7 @@ module TypeSafe
     end
 
     Answer::TYPES = {
-      "noul" => NoulAnswer, "choice" => ChoiceAnswer, "score" => ScoreAnswer
+      "noul" => NoulAnswer, "choice" => ChoiceAnswer, "score" => ScoreAnswer, "box" => BoxAnswer
     }.freeze
   end
 end

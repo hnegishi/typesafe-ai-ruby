@@ -47,6 +47,15 @@ module TypeSafe
       end
     end
 
+    context "Box" do
+      should "serialize with no criteria" do
+        assert_equal({ "type" => "box", "instructions" => "the mug in `photo`" },
+                     Box.new(instructions: "the mug in `photo`").to_h)
+        assert_equal({ "type" => "box" }, Box.new.to_h)
+        assert_equal Box.new(instructions: "the mug"), TypeSafe.box("the mug")
+      end
+    end
+
     should "accept structured instructions" do
       q = Noul.new(instructions: { question: "Is it spam?", context: [:email] })
       assert_equal({ "question" => "Is it spam?", "context" => ["email"] }, q.instructions)
@@ -117,6 +126,12 @@ module TypeSafe
         assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "score", criteria: ["one"] }) }
         assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "choice" }) }
         assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "noul", criteria: { maybe: 1 } }) }
+      end
+
+      should "reject criteria on raw box questions" do
+        assert_equal({ "q" => { "type" => "box", "instructions" => "x" } },
+                     Questions::Normalizer.questions(q: { type: :box, instructions: "x" }))
+        assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "box", criteria: ["a"] }) }
       end
 
       should "pass unknown question types through untouched" do
