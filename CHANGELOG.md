@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-18
+
+Support for Jev 1.14's experimental image input.
+
+- `TypeSafe::Image` from bytes, a file path, or base64 text. Place images in state, instructions or
+  criteria; they are uploaded as multipart assets. Images written into text go in `assets:`.
+- `box` questions and `TypeSafe::Responses::BoxAnswer` with `box` coordinates (`response.boxes`).
+- `danger_zone:` option on the client and per call to turn on `:images` and `:long_context`.
+- `TypeSafe::PayloadTooLargeError` (413) and `TypeSafe::UnsupportedMediaTypeError` (415).
+
 ## [0.1.0] - 2026-09-19
 
 Initial release.
@@ -17,5 +27,6 @@ Initial release.
 - Retries with backoff and `Retry-After`, keep-alive connections, logging and instrumentation hooks.
 - RBS signatures.
 
-[Unreleased]: https://github.com/hnegishi/typesafe-ai-ruby/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/hnegishi/typesafe-ai-ruby/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/hnegishi/typesafe-ai-ruby/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/hnegishi/typesafe-ai-ruby/releases/tag/v0.1.0
