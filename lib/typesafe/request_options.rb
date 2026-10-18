@@ -3,7 +3,7 @@
 module TypeSafe
   # Per-call overrides accepted by Client#system_one and Resources::Models#list.
   class RequestOptions
-    KEYS = %i[timeout headers extra_body retry_policy].freeze
+    KEYS = %i[timeout headers extra_body retry_policy danger_zone].freeze
 
     # Timeout per attempt in seconds for this call only.
     attr_reader :timeout
@@ -13,21 +13,32 @@ module TypeSafe
     attr_reader :extra_body
     # Retry policy override for this call only: a RetryPolicy, or a Hash applied on the client policy.
     attr_reader :retry_policy
+    # Experimental features to turn on for this call: :images and/or :long_context.
+    attr_reader :danger_zone
 
-    def self.from(options)
-      case options
-      when RequestOptions then options
-      when nil then new
-      when Hash then new(**options.transform_keys(&:to_sym))
-      else raise ArgumentError, "request_options must be a Hash, got #{options.class}"
-      end
+    # Coerce nil, a Hash, or a RequestOptions. A danger_zone given separately is merged in.
+    def self.from(options, danger_zone: nil)
+      result = case options
+               when RequestOptions then options
+               when nil then new
+               when Hash then new(**options.transform_keys(&:to_sym))
+               else raise ArgumentError, "request_options must be a Hash, got #{options.class}"
+               end
+      danger_zone.nil? ? result : result.with_danger_zone(danger_zone)
     end
 
-    def initialize(timeout: nil, headers: nil, extra_body: nil, retry_policy: nil)
+    # A copy with additional danger zones turned on.
+    def with_danger_zone(zones)
+      self.class.new(timeout: timeout, headers: headers, extra_body: extra_body, retry_policy: retry_policy,
+                     danger_zone: danger_zone + Util.danger_zones(zones))
+    end
+
+    def initialize(timeout: nil, headers: nil, extra_body: nil, retry_policy: nil, danger_zone: nil)
       @timeout = validate_timeout(timeout)
       @headers = (headers || {}).each_with_object({}) { |(name, value), result| result[name.to_s] = value.to_s }
       @extra_body = validate_extra_body(extra_body)
       @retry_policy = validate_retry_policy(retry_policy)
+      @danger_zone = Util.danger_zones(danger_zone).freeze
       freeze
     end
 

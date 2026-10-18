@@ -53,6 +53,15 @@ module TypeSafe
         assert_requested(:post, SYSTEM_ONE_URL, body: hash_including("model" => "jev-1.13.0"))
       end
 
+      should "turn on danger zones per call" do
+        stub_request(:post, SYSTEM_ONE_URL).to_return(json_response(system_one_response_fixture))
+        build_client.system_one(state: "x", questions: { q: Noul.new }, danger_zone: :images,
+                                request_options: { danger_zone: [:long_context] })
+        assert_requested(:post, SYSTEM_ONE_URL,
+                         headers: { "TypeSafe-Danger-Zone-Images" => "true", "TypeSafe-Danger-Zone-Long-Context" => "true" })
+        assert_raise(ArgumentError) { build_client.system_one(state: "x", questions: { q: Noul.new }, danger_zone: :nope) }
+      end
+
       should "validate before sending anything" do
         client = build_client
         assert_raise(ValidationError) { client.system_one(state: "x", questions: {}) }

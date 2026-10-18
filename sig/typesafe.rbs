@@ -14,6 +14,9 @@ module TypeSafe
 
   type retry_policy_input = RetryPolicy | Hash[Symbol | String, untyped] | nil
 
+  # Experimental features: :images and :long_context, singly or as an Array.
+  type danger_zone_input = Symbol | String | Array[Symbol | String] | nil
+
   class Noul = Questions::Noul
   class Choice = Questions::Choice
   class Score = Questions::Score
@@ -41,7 +44,11 @@ module TypeSafe
     SDK_NAME: String
     JSON_CONTENT_TYPE: String
 
+    DANGER_ZONES: Hash[Symbol, String]
+
     module Headers
+      DANGER_ZONE_IMAGES: String
+      DANGER_ZONE_LONG_CONTEXT: String
       AUTHORIZATION: String
       ACCEPT: String
       CONTENT_TYPE: String
@@ -138,10 +145,12 @@ module TypeSafe
     attr_accessor log_level: (Symbol | String)?
     attr_accessor retry_policy: retry_policy_input
     attr_accessor transport: HTTP::_Transport?
+    attr_accessor danger_zone: danger_zone_input
 
     def initialize: (?api_key: String?, ?base_url: String?, ?model: String?, ?timeout: Numeric?,
                      ?headers: Hash[untyped, untyped]?, ?logger: Logger?, ?log_level: (Symbol | String)?,
-                     ?retry_policy: retry_policy_input, ?transport: HTTP::_Transport?) -> void
+                     ?retry_policy: retry_policy_input, ?transport: HTTP::_Transport?,
+                     ?danger_zone: danger_zone_input) -> void
     def to_h: () -> Hash[Symbol, untyped]
     def resolve: (?env: _Env) -> Configuration
     def logger_severity: () -> Integer
@@ -191,10 +200,12 @@ module TypeSafe
     attr_reader headers: Hash[String, String]
     attr_reader extra_body: Hash[String, untyped]?
     attr_reader retry_policy: retry_policy_input
+    attr_reader danger_zone: Array[Symbol]
 
-    def self.from: (request_options_input options) -> RequestOptions
+    def self.from: (request_options_input options, ?danger_zone: danger_zone_input) -> RequestOptions
     def initialize: (?timeout: Numeric?, ?headers: Hash[untyped, untyped]?, ?extra_body: Hash[untyped, untyped]?,
-                     ?retry_policy: retry_policy_input) -> void
+                     ?retry_policy: retry_policy_input, ?danger_zone: danger_zone_input) -> void
+    def with_danger_zone: (danger_zone_input zones) -> RequestOptions
   end
 
   class Client
@@ -203,9 +214,10 @@ module TypeSafe
 
     def initialize: (?api_key: String?, ?base_url: String?, ?model: String?, ?timeout: Numeric?,
                      ?headers: Hash[untyped, untyped]?, ?logger: Logger?, ?log_level: (Symbol | String)?,
-                     ?retry_policy: retry_policy_input, ?transport: HTTP::_Transport?) -> void
+                     ?retry_policy: retry_policy_input, ?transport: HTTP::_Transport?,
+                     ?danger_zone: danger_zone_input) -> void
     def system_one: (state: json_input, questions: Hash[String | Symbol, question_input], ?model: String?,
-                     ?request_options: request_options_input) -> Responses::SystemOneResponse
+                     ?danger_zone: danger_zone_input, ?request_options: request_options_input) -> Responses::SystemOneResponse
     def close: () -> void
   end
 

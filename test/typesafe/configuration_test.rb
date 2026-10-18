@@ -65,6 +65,13 @@ module TypeSafe
         assert_raise(ConfigurationError) { resolve(api_key: "k", log_level: :loud) }
       end
 
+      should "normalize danger zones" do
+        assert_equal [], resolve(api_key: "k").danger_zone
+        assert_equal %i[images long_context], resolve(api_key: "k", danger_zone: ["images", :long_context]).danger_zone
+        assert_equal [:images], resolve(api_key: "k", danger_zone: :images).danger_zone
+        assert_raise(ConfigurationError) { resolve(api_key: "k", danger_zone: [:teleport]) }
+      end
+
       should "coerce a retry policy hash" do
         assert_equal RetryPolicy.new(max_retries: 0), resolve(api_key: "k", retry_policy: { max_retries: 0 }).retry_policy
         assert_raise(ArgumentError) { resolve(api_key: "k", retry_policy: 3) }

@@ -41,6 +41,23 @@ module TypeSafe
       end
     end
 
+    context "danger zone headers" do
+      should "send the headers for client and per-call zones" do
+        transport = FakeTransport.new(OK)
+        build_requestor(transport, danger_zone: [:long_context])
+          .post("/v1/systemone", body: {}, options: RequestOptions.new(danger_zone: [:images]))
+        headers = transport.requests.first.headers
+        assert_equal "true", headers["TypeSafe-Danger-Zone-Images"]
+        assert_equal "true", headers["TypeSafe-Danger-Zone-Long-Context"]
+      end
+
+      should "send nothing by default" do
+        transport = FakeTransport.new(OK)
+        build_requestor(transport).get("/v1/models")
+        assert_empty transport.requests.first.headers.keys.grep(/Danger-Zone/)
+      end
+    end
+
     context "#get" do
       should "send no body and honor a per-call timeout" do
         transport = FakeTransport.new(OK)

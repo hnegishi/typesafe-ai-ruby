@@ -24,8 +24,11 @@ module TypeSafe
     end
 
     # Answer named questions about text or structured state.
-    def system_one(state:, questions:, model: nil, request_options: {})
-      options = RequestOptions.from(request_options)
+    #
+    # danger_zone turns on experimental features for this call, such as :images; it is a
+    # shortcut for request_options: { danger_zone: [...] }.
+    def system_one(state:, questions:, model: nil, danger_zone: nil, request_options: {})
+      options = RequestOptions.from(request_options, danger_zone: danger_zone)
       body = {
         "state" => Questions::Normalizer.state(state),
         "model" => resolve_model(model),

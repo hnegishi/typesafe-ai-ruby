@@ -44,6 +44,14 @@ module TypeSafe
       RUNTIME = "X-TypeSafe-Runtime"
       RETRY_COUNT = "X-TypeSafe-Retry-Count"
       REQUEST_ID = "x-typesafe-request-id"
+      DANGER_ZONE_IMAGES = "TypeSafe-Danger-Zone-Images"
+      DANGER_ZONE_LONG_CONTEXT = "TypeSafe-Danger-Zone-Long-Context"
     end
+
+    # Experimental features that must be turned on per request with a TypeSafe-Danger-Zone-* header.
+    DANGER_ZONES = {
+      images: Headers::DANGER_ZONE_IMAGES,
+      long_context: Headers::DANGER_ZONE_LONG_CONTEXT
+    }.freeze
   end
 end

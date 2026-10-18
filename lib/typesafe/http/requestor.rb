@@ -102,14 +102,15 @@ module TypeSafe
         Request.new(
           method: method,
           uri: URI.parse("#{config.base_url}#{path}"),
-          headers: build_headers(options.headers, body: encoded),
+          headers: build_headers(options.headers, body: encoded, danger_zone: options.danger_zone),
           body: encoded,
           timeout: options.timeout || config.timeout
         )
       end
 
-      def build_headers(extra, body:)
+      def build_headers(extra, body:, danger_zone: [])
         headers = strip_protected(config.headers).merge(strip_protected(extra))
+        headers.merge!(danger_zone_headers(danger_zone))
         headers[Constants::Headers::AUTHORIZATION] = "Bearer #{config.api_key}"
         headers[Constants::Headers::ACCEPT] = Constants::JSON_CONTENT_TYPE
         headers[Constants::Headers::USER_AGENT] = sdk_identifier
@@ -117,6 +118,10 @@ module TypeSafe
         headers[Constants::Headers::RUNTIME] = Util.runtime
         headers[Constants::Headers::CONTENT_TYPE] = Constants::JSON_CONTENT_TYPE if body
         headers
+      end
+
+      def danger_zone_headers(zones)
+        (config.danger_zone + zones).uniq.to_h { |zone| [Constants::DANGER_ZONES.fetch(zone), "true"] }
       end
 
       def strip_protected(headers)

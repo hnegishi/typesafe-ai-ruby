@@ -112,6 +112,17 @@ module TypeSafe
       JSON.generate(body)
     end
 
+    # Normalize a danger_zone option into an Array of known Symbols.
+    def danger_zones(value)
+      zones = Array(value).map { |zone| zone.to_s.to_sym }.uniq
+      unknown = zones - Constants::DANGER_ZONES.keys
+      return zones if unknown.empty?
+
+      raise ArgumentError,
+            "unknown danger_zone #{unknown.map(&:inspect).join(", ")}; " \
+            "expected #{Constants::DANGER_ZONES.keys.map(&:inspect).join(", ")}"
+    end
+
     # The runtime identifier sent in X-TypeSafe-Runtime.
     def runtime
       "ruby/#{RUBY_VERSION} (#{RUBY_PLATFORM})"

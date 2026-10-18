@@ -28,9 +28,11 @@ module TypeSafe
     attr_accessor :retry_policy
     # Custom transport responding to #call(request); defaults to Net::HTTP.
     attr_accessor :transport
+    # Experimental features to turn on for every request: :images and/or :long_context.
+    attr_accessor :danger_zone
 
     def initialize(api_key: nil, base_url: nil, model: nil, timeout: nil, headers: nil, logger: nil,
-                   log_level: nil, retry_policy: nil, transport: nil)
+                   log_level: nil, retry_policy: nil, transport: nil, danger_zone: nil)
       @api_key = api_key
       @base_url = base_url
       @model = model
@@ -40,13 +42,15 @@ module TypeSafe
       @log_level = log_level
       @retry_policy = retry_policy
       @transport = transport
+      @danger_zone = danger_zone
     end
 
     # The explicitly set options, suitable for splatting into Client.new.
     def to_h
       {
         api_key: api_key, base_url: base_url, model: model, timeout: timeout, headers: headers,
-        logger: logger, log_level: log_level, retry_policy: retry_policy, transport: transport
+        logger: logger, log_level: log_level, retry_policy: retry_policy, transport: transport,
+        danger_zone: danger_zone
       }.compact
     end
 
@@ -59,6 +63,7 @@ module TypeSafe
       resolved.timeout = resolve_timeout
       resolved.headers = resolve_headers
       resolved.retry_policy = RetryPolicy.from(retry_policy)
+      resolved.danger_zone = resolve_danger_zone
       resolve_logging(resolved, env)
       resolved.freeze
     end
@@ -105,6 +110,12 @@ module TypeSafe
 
     def resolve_headers
       (headers || {}).each_with_object({}) { |(name, value), result| result[name.to_s] = value.to_s }
+    end
+
+    def resolve_danger_zone
+      Util.danger_zones(danger_zone).freeze
+    rescue ArgumentError => e
+      raise ConfigurationError, e.message
     end
 
     def resolve_logging(resolved, env)
