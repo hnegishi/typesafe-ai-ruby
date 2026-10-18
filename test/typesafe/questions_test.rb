@@ -56,6 +56,19 @@ module TypeSafe
       end
     end
 
+    should "replace images with their references and collect them" do
+      a = png_image
+      b = png_image
+      q = Choice.new(instructions: { compare: a }, criteria: { thumbs_up: b, none: "No hand." })
+      assert_equal({ "compare" => a.reference }, q.instructions)
+      assert_equal({ "thumbs_up" => b.reference, "none" => "No hand." }, q.criteria)
+      assert_equal [a, b], q.assets
+      assert_true q.assets.frozen?
+      assert_equal [a], Noul.new(instructions: a, criteria: { true: a }).assets
+      assert_equal [b], Score.new(criteria: [b, "open"]).assets
+      assert_equal [], Box.new(instructions: "the mug in #{a}").assets
+    end
+
     should "accept structured instructions" do
       q = Noul.new(instructions: { question: "Is it spam?", context: [:email] })
       assert_equal({ "question" => "Is it spam?", "context" => ["email"] }, q.instructions)
@@ -95,6 +108,15 @@ module TypeSafe
         assert_equal([1, "two"], Questions::Normalizer.state([1, :two]))
       end
 
+      should "collect images placed in the state" do
+        a = png_image
+        collected = []
+        assert_equal a.reference, Questions::Normalizer.state(a, assets: collected)
+        assert_equal({ "frames" => [a.reference] }, Questions::Normalizer.state({ frames: [a] }, assets: collected))
+        assert_equal [a, a], collected
+        assert_raise(ValidationError) { Questions::Normalizer.state(a) }
+      end
+
       should "reject nil and scalars" do
         assert_raise(ValidationError) { Questions::Normalizer.state(nil) }
         assert_raise(ValidationError) { Questions::Normalizer.state(42) }
@@ -104,10 +126,10 @@ module TypeSafe
 
     context ".questions" do
       should "accept question objects and raw hashes together" do
-        wire = Questions::Normalizer.questions(
-          billing: Noul.new(instructions: "Billing?"),
-          "tone" => { type: "choice", instructions: "Tone?", criteria: { calm: nil, angry: nil }, weight: 2 }
-        )
+        wire = Questions::Normalizer.questions({
+                                                 billing: Noul.new(instructions: "Billing?"),
+                                                 "tone" => { type: "choice", instructions: "Tone?", criteria: { calm: nil, angry: nil }, weight: 2 }
+                                               })
         assert_equal(
           {
             "billing" => { "type" => "noul", "instructions" => "Billing?" },
@@ -120,22 +142,34 @@ module TypeSafe
       should "validate before anything is sent" do
         assert_raise(ValidationError) { Questions::Normalizer.questions({}) }
         assert_raise(ValidationError) { Questions::Normalizer.questions(nil) }
-        assert_raise(ValidationError) { Questions::Normalizer.questions("" => Noul.new) }
-        assert_raise(ValidationError) { Questions::Normalizer.questions(q: "noul") }
-        assert_raise(ValidationError) { Questions::Normalizer.questions(q: { instructions: "no type" }) }
-        assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "score", criteria: ["one"] }) }
-        assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "choice" }) }
-        assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "noul", criteria: { maybe: 1 } }) }
+        assert_raise(ValidationError) { Questions::Normalizer.questions({ "" => Noul.new }) }
+        assert_raise(ValidationError) { Questions::Normalizer.questions({ q: "noul" }) }
+        assert_raise(ValidationError) { Questions::Normalizer.questions({ q: { instructions: "no type" } }) }
+        assert_raise(ValidationError) { Questions::Normalizer.questions({ q: { type: "score", criteria: ["one"] } }) }
+        assert_raise(ValidationError) { Questions::Normalizer.questions({ q: { type: "choice" } }) }
+        assert_raise(ValidationError) { Questions::Normalizer.questions({ q: { type: "noul", criteria: { maybe: 1 } } }) }
       end
 
       should "reject criteria on raw box questions" do
         assert_equal({ "q" => { "type" => "box", "instructions" => "x" } },
-                     Questions::Normalizer.questions(q: { type: :box, instructions: "x" }))
-        assert_raise(ValidationError) { Questions::Normalizer.questions(q: { type: "box", criteria: ["a"] }) }
+                     Questions::Normalizer.questions({ q: { type: :box, instructions: "x" } }))
+        assert_raise(ValidationError) { Questions::Normalizer.questions({ q: { type: "box", criteria: ["a"] } }) }
+      end
+
+      should "collect images from question objects and raw hashes" do
+        a = png_image
+        b = png_image
+        collected = []
+        wire = Questions::Normalizer.questions(
+          { obj: Noul.new(instructions: a), raw: { type: :box, instructions: b } }, assets: collected
+        )
+        assert_equal a.reference, wire["obj"]["instructions"]
+        assert_equal b.reference, wire["raw"]["instructions"]
+        assert_equal [a, b], collected
       end
 
       should "pass unknown question types through untouched" do
-        wire = Questions::Normalizer.questions(q: { type: "rank", items: %w[a b] })
+        wire = Questions::Normalizer.questions({ q: { type: "rank", items: %w[a b] } })
         assert_equal({ "q" => { "type" => "rank", "items" => %w[a b] } }, wire)
       end
     end

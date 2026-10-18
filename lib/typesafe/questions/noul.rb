@@ -14,10 +14,13 @@ module TypeSafe
       KEYS = %w[true false].freeze
 
       def initialize(instructions: nil, criteria: nil)
-        super(TYPE, instructions: instructions, criteria: self.class.normalize_criteria(criteria))
+        assets = []
+        instructions = Util.deep_stringify(instructions, assets: assets) # collect instruction images first
+        super(TYPE, instructions: instructions, criteria: self.class.normalize_criteria(criteria, assets: assets),
+                    assets: assets)
       end
 
-      def self.normalize_criteria(criteria)
+      def self.normalize_criteria(criteria, assets: nil)
         return nil if criteria.nil?
         raise ValidationError, "Noul criteria must be a Hash with true/false keys" unless criteria.is_a?(Hash)
 
@@ -28,7 +31,7 @@ module TypeSafe
                   "Noul criteria keys must be true or false, got #{key.inspect}"
           end
 
-          result[name] = value.nil? ? nil : Util.deep_stringify(value)
+          result[name] = value.nil? ? nil : Util.deep_stringify(value, assets: assets)
         end
       end
     end

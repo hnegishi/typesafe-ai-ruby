@@ -11,11 +11,16 @@ module TypeSafe
       attr_reader :instructions
       # Type-specific rubric.
       attr_reader :criteria
+      # Images placed in the instructions or criteria, sent as assets with the request.
+      attr_reader :assets
 
-      def initialize(type, instructions:, criteria:)
+      def initialize(type, instructions:, criteria:, assets: [])
         @type = type
-        @instructions = instructions.nil? ? nil : Util.deep_stringify(instructions)
+        @assets = assets
+        @instructions = instructions.nil? ? nil : Util.deep_stringify(instructions, assets: @assets)
         @criteria = criteria
+        @assets.uniq!
+        @assets.freeze
         freeze
       end
 

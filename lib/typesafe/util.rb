@@ -30,21 +30,30 @@ module TypeSafe
     end
 
     # Convert a value into plain JSON-compatible Ruby: string keys, no symbols, finite floats.
-    # Objects responding to as_json are converted through it. Anything else raises.
-    def deep_stringify(value)
+    # Objects responding to as_json are converted through it. Images become their reference and
+    # are appended to +assets+; without an +assets+ collector an Image raises. Anything else raises.
+    def deep_stringify(value, assets: nil)
       case value
       when String, Integer, true, false, nil then value
       when Symbol then value.to_s
       when Float then finite_float(value)
-      when Hash, Array then stringify_container(value)
-      else convert_object(value)
+      when Image then image_reference(value, assets)
+      when Hash, Array then stringify_container(value, assets)
+      else convert_object(value, assets)
       end
     end
 
-    def stringify_container(value)
-      return value.map { |v| deep_stringify(v) } if value.is_a?(Array)
+    def image_reference(image, assets)
+      raise ValidationError, "images can only be placed in state, instructions and criteria" if assets.nil?
 
-      value.each_with_object({}) { |(k, v), h| h[stringify_key(k)] = deep_stringify(v) }
+      assets << image
+      image.reference
+    end
+
+    def stringify_container(value, assets)
+      return value.map { |v| deep_stringify(v, assets: assets) } if value.is_a?(Array)
+
+      value.each_with_object({}) { |(k, v), h| h[stringify_key(k)] = deep_stringify(v, assets: assets) }
     end
 
     def finite_float(value)
@@ -61,7 +70,7 @@ module TypeSafe
       end
     end
 
-    def convert_object(value)
+    def convert_object(value, assets)
       unless value.respond_to?(:as_json)
         raise ValidationError,
               "cannot encode #{value.class} as JSON; pass a String, Hash, Array, or an object responding to as_json"
@@ -70,7 +79,7 @@ module TypeSafe
       converted = value.as_json
       raise ValidationError, "#{value.class}#as_json returned itself and cannot be encoded" if converted.equal?(value)
 
-      deep_stringify(converted)
+      deep_stringify(converted, assets: assets)
     end
 
     # Parse retry-after-ms (preferred) or Retry-After (seconds or HTTP-date) into seconds.

@@ -17,6 +17,9 @@ module TypeSafe
   # Experimental features: :images and :long_context, singly or as an Array.
   type danger_zone_input = Symbol | String | Array[Symbol | String] | nil
 
+  # Images attached to a request: one image, an Array of images, or reference => Image.
+  type assets_input = Image | Array[Image] | Hash[String | Symbol, Image] | nil
+
   class Noul = Questions::Noul
   class Choice = Questions::Choice
   class Score = Questions::Score
@@ -162,6 +165,13 @@ module TypeSafe
     def to_json: (*untyped args) -> String
   end
 
+  module Assets
+    MAX_REFERENCE_BYTES: Integer
+
+    def self?.attach: (assets_input value) -> Hash[String, Image]
+    def self?.resolve: (Array[Image] collected, Hash[String, Image] attached, String json) -> Hash[String, Image]
+  end
+
   class Configuration
     LOG_LEVELS: Hash[Symbol, Integer]
 
@@ -245,8 +255,9 @@ module TypeSafe
                      ?headers: Hash[untyped, untyped]?, ?logger: Logger?, ?log_level: (Symbol | String)?,
                      ?retry_policy: retry_policy_input, ?transport: HTTP::_Transport?,
                      ?danger_zone: danger_zone_input) -> void
-    def system_one: (state: json_input, questions: Hash[String | Symbol, question_input], ?model: String?,
-                     ?danger_zone: danger_zone_input, ?request_options: request_options_input) -> Responses::SystemOneResponse
+    def system_one: (state: json_input | Image, questions: Hash[String | Symbol, question_input], ?model: String?,
+                     ?assets: assets_input, ?danger_zone: danger_zone_input,
+                     ?request_options: request_options_input) -> Responses::SystemOneResponse
     def close: () -> void
   end
 

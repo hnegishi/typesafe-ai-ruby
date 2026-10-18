@@ -8,6 +8,14 @@ module TypeSafe
     SYSTEM_ONE_URL = "#{API_BASE}/v1/systemone".freeze
     MODELS_URL = "#{API_BASE}/v1/models".freeze
 
+    # Minimal bytes with a PNG or JPEG signature; enough for the client, which never decodes images.
+    PNG_BYTES = "\x89PNG\r\n\x1a\n#{"\x00" * 8}".b.freeze
+    JPEG_BYTES = "\xFF\xD8\xFF\xE0#{"\x00" * 8}".b.freeze
+
+    def png_image
+      TypeSafe::Image.new(PNG_BYTES)
+    end
+
     def fixture(name)
       File.read(File.expand_path("fixtures/#{name}", __dir__))
     end

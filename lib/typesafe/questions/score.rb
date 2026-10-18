@@ -14,17 +14,20 @@ module TypeSafe
       MIN_LEVELS = 2
 
       def initialize(criteria:, instructions: nil)
-        super(TYPE, instructions: instructions, criteria: self.class.normalize_criteria(criteria))
+        assets = []
+        instructions = Util.deep_stringify(instructions, assets: assets) # collect instruction images first
+        super(TYPE, instructions: instructions, criteria: self.class.normalize_criteria(criteria, assets: assets),
+                    assets: assets)
       end
 
-      def self.normalize_criteria(criteria)
+      def self.normalize_criteria(criteria, assets: nil)
         raise ValidationError, "Score criteria must be an Array of at least #{MIN_LEVELS} levels" unless
           criteria.is_a?(Array) && criteria.length >= MIN_LEVELS
 
         criteria.map do |level|
           raise ValidationError, "Score levels must not be nil" if level.nil?
 
-          Util.deep_stringify(level)
+          Util.deep_stringify(level, assets: assets)
         end
       end
     end

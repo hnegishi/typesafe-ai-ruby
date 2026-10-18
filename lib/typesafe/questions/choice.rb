@@ -14,10 +14,13 @@ module TypeSafe
       TYPE = "choice"
 
       def initialize(criteria:, instructions: nil)
-        super(TYPE, instructions: instructions, criteria: self.class.normalize_criteria(criteria))
+        assets = []
+        instructions = Util.deep_stringify(instructions, assets: assets) # collect instruction images first
+        super(TYPE, instructions: instructions, criteria: self.class.normalize_criteria(criteria, assets: assets),
+                    assets: assets)
       end
 
-      def self.normalize_criteria(criteria)
+      def self.normalize_criteria(criteria, assets: nil)
         raise ValidationError, "Choice criteria must be a non-empty Hash of option => description" unless
           criteria.is_a?(Hash) && !criteria.empty?
 
@@ -25,7 +28,7 @@ module TypeSafe
           name = Util.stringify_key(key)
           raise ValidationError, "Choice option names must not be blank" if name.strip.empty?
 
-          result[name] = value.nil? ? nil : Util.deep_stringify(value)
+          result[name] = value.nil? ? nil : Util.deep_stringify(value, assets: assets)
         end
       end
     end

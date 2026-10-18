@@ -11,8 +11,10 @@ module TypeSafe
       attr_reader headers: Hash[String, String]
       attr_reader body: String?
       attr_reader timeout: Numeric
+      attr_reader body_summary: String?
 
-      def initialize: (method: Symbol, uri: URI::HTTP, headers: Hash[String, String], body: String?, timeout: Numeric) -> void
+      def initialize: (method: Symbol, uri: URI::HTTP, headers: Hash[String, String], body: String?, timeout: Numeric,
+                       ?body_summary: String?) -> void
       def endpoint: () -> String
       def with_headers: (Hash[String, String] extra) -> Request
     end
@@ -29,6 +31,29 @@ module TypeSafe
       def success?: () -> bool
       def json: () -> untyped
       def retry_after: () -> Float?
+    end
+
+    class MultipartEncoder
+      class Part
+        attr_accessor name: String
+        attr_accessor content_type: String
+        attr_accessor content: String
+
+        def initialize: (name: String, content_type: String, content: String) -> void
+      end
+
+      class Encoded
+        attr_accessor body: String
+        attr_accessor content_type: String
+        attr_accessor summary: String
+      end
+
+      attr_reader boundary: String
+
+      def self.build: (Hash[String, untyped] body, Hash[String, Image] assets) -> Encoded
+      def initialize: (?boundary: String) -> void
+      def content_type: () -> String
+      def encode: (String json, Array[Part] parts) -> String
     end
 
     class ConnectionManager
@@ -69,7 +94,7 @@ module TypeSafe
 
       def initialize: (Configuration config, ?transport: _Transport?, ?sleeper: (^(Numeric) -> void)?,
                        ?clock: (^() -> Float)?) -> void
-      def post: (String path, body: Hash[String, untyped], ?options: RequestOptions) -> Response
+      def post: (String path, body: Hash[String, untyped], ?options: RequestOptions, ?assets: Hash[String, Image]) -> Response
       def get: (String path, ?options: RequestOptions) -> Response
       def close: () -> void
     end
