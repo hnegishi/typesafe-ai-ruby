@@ -141,6 +141,27 @@ module TypeSafe
     def dig: (String | Symbol key, *untyped rest) -> untyped
   end
 
+  class Image
+    MAX_BYTES: Integer
+    REFERENCE_PATTERN: Regexp
+    SIGNATURES: Hash[String, String]
+
+    attr_reader reference: String
+    attr_reader path: String?
+
+    def self.open: (untyped path) -> Image
+    def self.from_base64: (String text) -> Image
+    def self.reference?: (untyped string) -> bool
+    def initialize: (?String? bytes, ?path: String?) -> void
+    def bytes: () -> String
+    def bytesize: () -> Integer
+    def content_type: () -> String
+    def format: () -> String
+    def validate!: () -> Image
+    def to_s: () -> String
+    def to_json: (*untyped args) -> String
+  end
+
   class Configuration
     LOG_LEVELS: Hash[Symbol, Integer]
 

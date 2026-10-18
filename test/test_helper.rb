@@ -7,6 +7,7 @@ require "test/unit"
 require "mocha/test_unit"
 require "shoulda/context"
 require "stringio"
+require "tmpdir"
 require "webmock/test_unit"
 
 require File.expand_path("test_data", __dir__)
